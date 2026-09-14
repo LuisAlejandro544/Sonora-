@@ -1,11 +1,130 @@
-<div align="center">
+# Sonora - Reproductor de Audio Avanzado de Alta Fidelidad
 
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
+Sonora es un reproductor de audio moderno para Android, construido con **Kotlin** y **Jetpack Compose**, respaldado por un motor híbrido de procesamiento nativo en **C++ (DSP)** y **Rust (Análisis Acústico FFT)**.
 
-  <h1>Built with AI Studio</h2>
+El proyecto está diseñado pensando en la libertad del usuario, rendimiento en hardware real de teléfonos móviles y distribución libre e independiente mediante archivos **APK** o tiendas de terceros como **Uptodown**, sin dependencia obligatoria de servicios privativos de Google Play.
 
-  <p>The fastest path from prompt to production with Gemini.</p>
+---
 
-  <a href="https://aistudio.google.com/apps">Start building</a>
+## 🌟 Características Principales
 
-</div>
+- **Interfaz Rica y Moderna (Jetpack Compose)**:
+  - Diseño con volumen y profundidad visual mediante componentes semi-3D y sombras dinámicas.
+  - Navegación modular entre pantallas dedicadas: *Reproducción Actual (Now Playing)*, *Biblioteca de Canciones*, *Gestión de Playlists*, *Ecualizador Gráfico & DSP* y *Ajustes Técnicos*.
+  - Visualizador rítmico de audio en tiempo real impulsado por cálculo de frecuencias.
+
+- **Motor Híbrido Nativo de Alto Rendimiento**:
+  - **C++ (`libsonora_dsp.so`)**:
+    - Algoritmo de filtrado digital IIR Biquad paramétrico basado en el estándar de Robert Bristow-Johnson (Cookbook EQ).
+    - Limitador y saturador analógico no lineal *Soft-Clipping* (`tanh`) para prevenir distorsión digital al aplicar refuerzo dinámico de graves (*Bass Boost*).
+  - **Rust (`libsonora_rust.so`)**:
+    - Extracción nativa ultrarrápida de metadatos (título, artista, álbum) en etiquetas ID3v2 (MP3) y bloques Vorbis (FLAC).
+    - Extracción directa de carátulas incrustadas (`APIC` / `PICTURE`) en memoria para su conversión.
+    - Análisis espectral de baja latencia con ventana Hamming y banco de filtros logarítmico para el visualizador a 60 FPS.
+    - Medidor RMS de energía acústica y cálculo de decibelios en tiempo real (dBFS).
+    - Generación de hashes acústicos ultrarrápidos FNV-1a de 64 bits para deduplicación de pistas e indexación en caché.
+
+- **Arquitectura de Almacenamiento Modular Desacoplada (`android/data/com.nuestraapp/`)**:
+  - `canciones/`: Almacén aislado de pistas de audio importadas.
+  - `webp/`: Carátulas comprimidas en formato **WebP a máxima compresión sin pérdida de calidad (Lossless)**, reduciendo almacenamiento sin degradar la portada.
+  - `metadatos/`: Archivos legibles de texto con el nombre de la canción, artista y álbum.
+  - `registros_json/`: Archivos `.json` conectores que vinculan cada archivo de audio, su carátula WebP y su archivo de metadatos para trazabilidad e indexación total.
+
+- **Soporte Multi-Arquitectura Completo**:
+  - Compilación nativa optimizada para procesadores de **64 bits** (`arm64-v8a`, `x86_64`) y de **32 bits** (`armeabi-v7a`, `x86`).
+
+- **Reproducción Continua en Segundo Plano (Media3 & ExoPlayer)**:
+  - Servicio de audio en segundo plano (`MediaSessionService`) con soporte completo de controles en la barra de notificaciones del sistema.
+  - Gestión fluida del ciclo de vida de audio, pausa automática al desconectar auriculares y control de volumen por software.
+
+- **Persistencia Local Segura (Room Database)**:
+  - Base de datos SQLite local mediante Android Room para almacenamiento offline de pistas, listas de reproducción y configuración del ecualizador.
+
+---
+
+## 🏗️ Arquitectura del Sistema
+
+```
+┌────────────────────────────────────────────────────────────┐
+│                    Capa de Presentación                    │
+│      Jetpack Compose UI (Material 3 + Estilo Semi-3D)       │
+├─────────────────────────────┬──────────────────────────────┤
+│       Capa de Datos         │    Capa de Reproducción      │
+│      Room SQLite DB         │    Media3 ExoPlayer Service  │
+├─────────────────────────────┴──────────────────────────────┤
+│                   Puentes JNI (Kotlin)                     │
+│        SonoraCppBridge        │       SonoraRustBridge     │
+├───────────────────────────────┼────────────────────────────┤
+│         Motor C++             │         Motor Rust         │
+│     libsonora_dsp.so          │     libsonora_rust.so      │
+│  • Filtros Biquad IIR         │  • Transformada FFT        │
+│  • Limitador Soft-Clip        │  • Medidor dBFS RMS        │
+│  • Procesamiento PCM          │  • Hash FNV-1a de 64 bits  │
+└───────────────────────────────┴────────────────────────────┘
+```
+
+---
+
+## 📱 Requisitos y Compatibilidad
+
+- **Sistema Operativo**: Android 7.0 (API 24) o superior.
+- **Arquitecturas Soportadas**:
+  - `arm64-v8a` (Dispositivos móviles modernos de 64 bits)
+  - `armeabi-v7a` (Dispositivos móviles de 32 bits)
+  - `x86_64` (Emuladores y tablets de 64 bits)
+  - `x86` (Emuladores y dispositivos de 32 bits)
+- **NDK Requerido**: Android NDK r27b (`27.2.12479018`).
+- **CMake**: 3.22.1+.
+- **Rust Toolchain**: 1.85+ con toolchain `cargo-ndk`.
+
+---
+
+## 🚀 Compilación y Construcción
+
+### 1. Compilación del Motor Rust
+Para generar las librerías compartidas de Rust para todas las ABIs:
+```bash
+export ANDROID_NDK_HOME="/opt/android/sdk/ndk/27.2.12479018"
+cd rust_core
+cargo ndk -t arm64-v8a -t armeabi-v7a -t x86_64 -t x86 -o ../app/src/main/jniLibs build --release
+cd ..
+```
+
+### 2. Compilación del APK Completo (Gradle + C++ CMake)
+```bash
+gradle assembleDebug
+```
+El APK resultante incluirá automáticamente tanto las librerías compiladas de C++ como las de Rust dentro del paquete final.
+
+### 3. Generación Automática de Firma Debug
+Para generar una firma `debug.keystore` fresca y autónoma desde cero sin depender de configuraciones previas:
+```bash
+chmod +x ./generar_firma_debug.sh
+./generar_firma_debug.sh --force
+```
+
+### 4. Compilación Automatizada en GitHub Actions (CI/CD sin Caché)
+El repositorio incluye el workflow `.github/workflows/compilar_apk_debug.yml`:
+- Descarga el código completo del proyecto.
+- Instala herramientas nativas de C++ (CMake, Ninja, NDK 27.2) y Rust (targets 32/64 bits, cargo-ndk).
+- Compila `libsonora_rust.so` para `arm64-v8a`, `armeabi-v7a`, `x86_64` y `x86`.
+- Genera la firma `debug.keystore` desde cero con `./generar_firma_debug.sh --force`.
+- Compila el APK Debug limpiamente sin caché (`--no-build-cache --no-daemon`).
+- Expone el archivo `Sonora-AudioVibe-Debug-APK` como artefacto descargable directo en GitHub para instalar en el móvil.
+
+### 5. Limpieza Exhaustiva de Archivos Temporales y Cachés Nativas
+Para purgar directorios temporales de Rust (`target/`, cachés intermedias) y artefactos de compilación de CMake/Ninja:
+```bash
+# Mediante script Shell:
+./limpiar_archivos_nativos.sh
+
+# O mediante script Python directo:
+python3 limpiar_archivos_nativos.py
+```
+
+---
+
+## 🛡️ Privacidad y Distribución
+
+- **100% Offline y Privado**: No rastrea datos del usuario, no requiere conexión a internet para reproducir música local y no contiene telemetría externa.
+- **Sin Dependencias de Servicios de Google Play**: Puede instalarse y ejecutarse libremente en cualquier dispositivo Android mediante sideloading, tiendas alternativas como Uptodown o gestores de paquetes independientes.

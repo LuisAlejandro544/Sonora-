@@ -1,0 +1,45 @@
+*.iml
+.gradle
+.kotlin
+/local.properties
+/.idea/caches
+/.idea/libraries
+/.idea/modules.xml
+/.idea/workspace.xml
+/.idea/navEditor.xml
+/.idea/assetWizardSettings.xml
+.DS_Store
+/build
+/captures
+local.properties
+.env
+debug.keystore
+
+# ==============================================================================
+# Archivos intermedios y temporales de Rust y Cargo
+# ==============================================================================
+**/target/
+target/
+rust_core/target/
+**/*.rs.bk
+*.rs.bk
+
+# ==============================================================================
+# Archivos temporales y de compilación de C++, CMake y Android NDK
+# ==============================================================================
+.cxx/
+**/.cxx/
+.externalNativeBuild/
+**/.externalNativeBuild/
+**/cmake-build-*/
+**/.cmake/
+**/CMakeCache.txt
+**/CMakeFiles/
+**/*.ninja*
+**/*.ninja_deps
+**/*.ninja_log
+**/*.o
+**/*.obj
+**/*.a
+**/*.d
+compile_commands.json

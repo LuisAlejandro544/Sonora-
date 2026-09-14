@@ -1,0 +1,178 @@
+# ==============================================================================
+# WORKFLOW DE GITHUB ACTIONS: COMPILACIÓN LIMPIA DE APK DEBUG PARA SONORA
+# ==============================================================================
+# Este flujo realiza una compilación 100% aislada, autónoma y sin caché:
+#   1. Descarga la totalidad del código del proyecto (Full Depth).
+#   2. Instala dependencias completas para C++ (CMake, Ninja, Android NDK 27.2).
+#   3. Instala dependencias para Rust (Rustup, targets Android 32 y 64 bits, cargo-ndk).
+#   4. Compila las librerías nativas de Rust para las 4 arquitecturas (arm64-v8a,
+#      armeabi-v7a, x86_64, x86) y las deposita en jniLibs.
+#   5. Obliga a generar una firma de depuración nueva desde cero sin esperar secrets.
+#   6. Compila el APK Debug mediante Gradle sin caché (--no-build-cache --no-daemon).
+#   7. Limpia residuos nativos temporales con el script del repositorio.
+#   8. Publica el APK Debug resultante como artefacto listo para descargar e instalar.
+# ==============================================================================
+
+name: Compilar APK Debug de Sonora (Sin Caché)
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+    branches:
+      - main
+      - master
+  # Permite ejecutar manualmente la compilación desde la app móvil o web de GitHub
+  workflow_dispatch:
+
+# Garantiza que el job pueda escribir artefactos
+permissions:
+  contents: read
+
+jobs:
+  build-debug-apk:
+    name: Compilar APK Debug (C++, Rust & Android)
+    runs-on: ubuntu-latest
+
+    steps:
+      # ------------------------------------------------------------------------
+      # 1. DESCARGA DEL CÓDIGO FUENTE COMPLETO
+      # ------------------------------------------------------------------------
+      - name: Descargar todo el código de la aplicación
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: recursive
+
+      # ------------------------------------------------------------------------
+      # 2. CONFIGURACIÓN DEL ENTORNO JAVA (JDK 17)
+      # ------------------------------------------------------------------------
+      - name: Configurar Java JDK 17 (Eclipse Temurin)
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      # ------------------------------------------------------------------------
+      # 3. INSTALACIÓN DE DEPENDENCIAS DEL SISTEMA Y C++
+      # ------------------------------------------------------------------------
+      - name: Instalar dependencias de C++ y herramientas de compilación
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            cmake \
+            ninja-build \
+            clang \
+            llvm \
+            build-essential
+
+      # ------------------------------------------------------------------------
+      # 4. CONFIGURACIÓN DEL SDK Y NDK DE ANDROID
+      # ------------------------------------------------------------------------
+      - name: Configurar Android SDK y NDK
+        uses: android-actions/setup-android@v3
+
+      - name: Instalar Android NDK y CMake específico de Android
+        run: |
+          echo "[*] Aceptando licencias del Android SDK..."
+          yes | sdkmanager --licenses > /dev/null 2>&1 || true
+
+          echo "[*] Instalando Android NDK 27.2.12479018 y CMake 3.22.1..."
+          sdkmanager --install "ndk;27.2.12479018" "cmake;3.22.1"
+
+          # Exportar rutas del NDK a variables de entorno de GitHub Actions
+          NDK_PATH="${ANDROID_HOME}/ndk/27.2.12479018"
+          echo "ANDROID_NDK_HOME=${NDK_PATH}" >> $GITHUB_ENV
+          echo "ANDROID_NDK_ROOT=${NDK_PATH}" >> $GITHUB_ENV
+          echo "${NDK_PATH}" >> $GITHUB_PATH
+
+      # ------------------------------------------------------------------------
+      # 5. INSTALACIÓN DE RUST, DEPENDENCIAS NATIVAS Y TARGETS ANDROID
+      # ------------------------------------------------------------------------
+      - name: Instalar Rust y targets móviles de 32 y 64 bits
+        run: |
+          echo "[*] Instalando Rust stable..."
+          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable
+          source "$HOME/.cargo/env"
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+
+          echo "[*] Añadiendo targets de Android para arquitecturas 32 y 64 bits..."
+          rustup target add aarch64-linux-android \
+                            armv7-linux-androideabi \
+                            x86_64-linux-android \
+                            i686-linux-android
+
+          echo "[*] Instalando herramienta cargo-ndk..."
+          cargo install cargo-ndk --locked
+
+      # ------------------------------------------------------------------------
+      # 6. COMPILACIÓN NATIVA DE RUST PARA TODAS LAS ARQUITECTURAS
+      # ------------------------------------------------------------------------
+      - name: Compilar librería nativa libsonora_rust.so
+        run: |
+          source "$HOME/.cargo/env"
+          export ANDROID_NDK_HOME="${ANDROID_HOME}/ndk/27.2.12479018"
+          export ANDROID_NDK_ROOT="${ANDROID_HOME}/ndk/27.2.12479018"
+
+          echo "[*] Compilando crate rust_core para arm64-v8a, armeabi-v7a, x86_64 y x86..."
+          cd rust_core
+          cargo ndk \
+            -t arm64-v8a \
+            -t armeabi-v7a \
+            -t x86_64 \
+            -t x86 \
+            -o ../app/src/main/jniLibs \
+            build --release
+          cd ..
+
+          echo "[✓] Verificación de librerías compiladas en jniLibs:"
+          ls -la app/src/main/jniLibs/*/*.so
+
+      # ------------------------------------------------------------------------
+      # 7. GENERACIÓN FORZADA DE FIRMA DEBUG DESDE CERO (SIN ESPERAR NINGUNA FIRMA)
+      # ------------------------------------------------------------------------
+      - name: Generar firma debug.keystore desde cero
+        run: |
+          chmod +x ./generar_firma_debug.sh
+          # Ejecutar el script obligando a crear la firma limpia sin interacción
+          ./generar_firma_debug.sh --force
+
+          echo "[✓] Verificando presencia de la firma debug.keystore:"
+          ls -la debug.keystore
+
+      # ------------------------------------------------------------------------
+      # 8. COMPILACIÓN DEL APK DEBUG CON GRADLE (ESTRICTAMENTE SIN CACHÉ)
+      # ------------------------------------------------------------------------
+      - name: Compilar APK Debug con Gradle (Sin Caché)
+        run: |
+          chmod +x ./gradlew
+          echo "[*] Iniciando compilación de APK Debug sin caché y sin daemon..."
+          ./gradlew assembleDebug \
+            --no-daemon \
+            --no-build-cache \
+            --stacktrace
+
+          echo "[✓] Verificando archivo APK Debug generado:"
+          ls -lh app/build/outputs/apk/debug/*.apk
+
+      # ------------------------------------------------------------------------
+      # 9. LIMPIEZA DE RESIDUOS NATIVOS INTERMEDIOS
+      # ------------------------------------------------------------------------
+      - name: Limpiar archivos basura y cachés temporales de Rust y C++
+        if: always()
+        run: |
+          chmod +x ./limpiar_archivos_nativos.sh
+          ./limpiar_archivos_nativos.sh
+
+      # ------------------------------------------------------------------------
+      # 10. PUBLICACIÓN DEL APK DEBUG COMO ARTEFACTO DESCARGABLE
+      # ------------------------------------------------------------------------
+      - name: Subir APK Debug compilado
+        uses: actions/upload-artifact@v4
+        with:
+          name: Sonora-AudioVibe-Debug-APK
+          path: app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+          retention-days: 30

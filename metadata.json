@@ -1,0 +1,6 @@
+{
+  "name": "Sonora",
+  "description": "Reproductor de música local inspirado en el diseño moderno de streaming, con importación de archivos de audio mediante ExoPlayer y Media3.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

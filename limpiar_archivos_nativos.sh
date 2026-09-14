@@ -30,6 +30,14 @@ echo "-> Purgando objetos compilados temporales (*.o, *.obj, *.ninja*, CMakeCach
 find . -type f \( -name "*.o" -o -name "*.obj" -o -name "*.ninja*" -o -name "CMakeCache.txt" -o -name "compile_commands.json" \) -not -path "*/.git/*" -delete 2>/dev/null || true
 find . -type d -name "CMakeFiles" -not -path "*/.git/*" -exec rm -rf {} + 2>/dev/null || true
 
+# 4. Si se pasa el argumento --purgar-so o --all, purgar también los archivos binarios .so y jniLibs
+if [[ "${1:-}" == "--purgar-so" ]] || [[ "${1:-}" == "--all" ]]; then
+    echo "-> Purgando binarios compilados .so y carpetas jniLibs para evitar filtraciones..."
+    rm -rf app/src/main/jniLibs
+    find . -type f -name "*.so" -not -path "*/.git/*" -delete 2>/dev/null || true
+    echo "   [✓] Binarios .so y carpetas jniLibs purgados con éxito."
+fi
+
 # 4. Verificación de seguridad: Si aún existe rust_core/target, ejecutar fallback en Python
 if [ -d "rust_core/target" ]; then
     echo "-> [!] Directorio rust_core/target aún detectado. Ejecutando purga en Python..."

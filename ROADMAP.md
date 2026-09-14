@@ -15,9 +15,10 @@ Este documento describe la visión de desarrollo y la evolución técnica de **S
   - Motor C++ con filtros IIR Biquad y limitador Soft-Clipping (`tanh`).
   - Motor Rust con transformada FFT para espectrograma, cálculo de decibelios RMS y hash acústico de 64 bits.
   - Panel de pruebas de rendimiento nativo en la pantalla de Ajustes.
-- [x] **Gestión de Entorno de Compilación**:
+- [x] **Gestión de Entorno de Compilación y Seguridad**:
+  - Requisito mínimo Android 8.0 (API 26) para soporte moderno de MediaSession y canales nativos.
   - Script automatizado de limpieza de residuos nativos (`limpiar_archivos_nativos.sh`).
-  - Reglas exhaustivas de exclusión en `.gitignore` para artefactos de compilación Cargo, CMake y NDK.
+  - Reglas exhaustivas de exclusión en `.gitignore` para artefactos de compilación Cargo, CMake, NDK y binarios compilados `.so` (evita filtraciones y mantiene el repositorio limpio).
 
 ---
 
@@ -59,8 +60,11 @@ Este documento describe la visión de desarrollo y la evolución técnica de **S
   - Generación de archivos conectores `.json` para trazabilidad y registro íntegro de la biblioteca.
 - [ ] **Clasificación por Detección Acústica**:
   - Análisis automático de pistas para clasificar por ritmo y nivel de energía acústica usando el puente Rust.
-- [ ] **Listas de Reproducción Inteligentes**:
-  - Generación de listas dinámicas ("Canciones más reproducidas", "Añadidas recientemente", "Favoritas del mes").
+- [x] **Sección Dinámica de Alta Rotación ("Más escuchadas")**:
+  - Seguimiento y persistencia reactiva del contador de reproducciones (`playCount`) en Room SQLite.
+  - Podio semi-3D visual con insignias de posición metálicas (#1 oro, #2 cian/plata, #3 bronce), contador de reproducciones e inicio directo de cola en alta rotación.
+- [ ] **Listas de Reproducción Inteligentes Adicionales**:
+  - Generación de listas dinámicas avanzadas ("Favoritas del mes", "Historial semanal", "Baja rotación / Redescubrir").
 - [ ] **Editor de Metadatos Integrado**:
   - Capacidad para editar título, artista, álbum, año y género directamente desde la pantalla del teléfono.
 

@@ -9,10 +9,12 @@ Este documento proporciona contexto técnico, restricciones operativas y lineami
 - **Tipo de Aplicación**: Reproductor de música avanzado para Android con procesamiento de audio nativo.
 - **Entorno del Usuario**: El usuario opera y prueba la aplicación principalmente desde un **teléfono móvil** (no desde una computadora de escritorio).
 - **Canal de Distribución**: La aplicación se distribuirá de forma independiente (instalación directa vía **APK** o plataformas como **Uptodown**), no a través de Google Play Store.
+- **Versión Mínima de Android**: `minSdk = 26` (Android 8.0 Oreo). Permite manejo nativo de canales de notificación y optimización del motor de audio.
 - **Políticas de Privacidad y Dependencias**:
   - No se deben introducir dependencias que dependan forzosamente de los Servicios de Google Play (GMS) para funcionar.
   - No se deben integrar librerías con licencias copyleft estrictas (como GPLv3 o AGPL) que impongan la obligación de liberar código o requerimientos gravosos de atribución en la distribución del binario.
   - El peso final del APK no es una restricción limitante: la prioridad absoluta es la **estabilidad, funcionalidad al 100% y confiabilidad de las dependencias**, prefiriendo librerías robustas y probadas antes que soluciones sin dependencias frágiles.
+  - **Exclusión de Binarios `.so` en Git**: Los archivos binarios `.so` compilados y `jniLibs/` están estrictamente excluidos en `.gitignore` para evitar filtraciones de código binario, prevenir desfases entre el código fuente y el binario, y evitar el bloat de Git. Las compilaciones se efectúan on-the-fly en GitHub Actions o localmente mediante `cargo-ndk`.
 
 ---
 
@@ -20,9 +22,10 @@ Este documento proporciona contexto técnico, restricciones operativas y lineami
 
 1. **Rechazo al Minimalismo Extremo**:
    - Al usuario **no le gusta el minimalismo plano o ultra-simplista**. La interfaz debe contar con riqueza visual, profundidad, efectos semi-3D, degradados elegantes, sombras volumétricas y retroalimentación táctil clara.
-2. **Modularidad de Pantallas**:
+2. **Modularidad de Pantallas y Componentes**:
    - Está terminantemente prohibido amontonar todas las funcionalidades en una sola pantalla única atestada.
    - Cada sección principal debe contar con su propia pantalla dedicada (`NowPlaying`, `Library`, `Playlists`, `Equalizer`, `Settings`), conectadas mediante una barra de navegación inferior intuitiva y fluida.
+   - Componentes de alta densidad informativa (como `MostPlayedSection` con podio de alta rotación y contadores de reproducción) deben modularizarse en submódulos en `com.example.ui.components` manteniendo cada archivo por debajo de 500 líneas.
 
 ---
 

@@ -11,6 +11,7 @@ El proyecto está diseñado pensando en la libertad del usuario, rendimiento en 
 - **Interfaz Rica y Moderna (Jetpack Compose)**:
   - Diseño con volumen y profundidad visual mediante componentes semi-3D y sombras dinámicas.
   - Navegación modular entre pantallas dedicadas: *Reproducción Actual (Now Playing)*, *Biblioteca de Canciones*, *Gestión de Playlists*, *Ecualizador Gráfico & DSP* y *Ajustes Técnicos*.
+  - Podio dinámico de **"Más escuchadas"** en la pantalla de Inicio: insignia metálica por puesto (#1 oro, #2 plata/cian, #3 bronce), contador de reproducciones en vivo y acceso directo a cola de alta rotación.
   - Visualizador rítmico de audio en tiempo real impulsado por cálculo de frecuencias.
 
 - **Motor Híbrido Nativo de Alto Rendimiento**:
@@ -67,7 +68,7 @@ El proyecto está diseñado pensando en la libertad del usuario, rendimiento en 
 
 ## 📱 Requisitos y Compatibilidad
 
-- **Sistema Operativo**: Android 7.0 (API 24) o superior.
+- **Sistema Operativo**: Android 8.0 (API 26) o superior (permite gestión nativa de canales de notificación y soporte de audio moderno).
 - **Arquitecturas Soportadas**:
   - `arm64-v8a` (Dispositivos móviles modernos de 64 bits)
   - `armeabi-v7a` (Dispositivos móviles de 32 bits)
@@ -76,6 +77,14 @@ El proyecto está diseñado pensando en la libertad del usuario, rendimiento en 
 - **NDK Requerido**: Android NDK r27b (`27.2.12479018`).
 - **CMake**: 3.22.1+.
 - **Rust Toolchain**: 1.85+ con toolchain `cargo-ndk`.
+
+---
+
+## 🔒 Política de Seguridad: Exclusión de Binarios `.so` en Git
+
+Para proteger la integridad del proyecto y la privacidad del usuario:
+1. **Sin Binarios Compilados en el Repositorio**: Los archivos `.so` y la carpeta `app/src/main/jniLibs/` están estrictamente excluidos en `.gitignore`. Esto previene la filtración de binarios compilados, evita posibles fugas de información y mantiene el repositorio de Git ligero para conexiones móviles.
+2. **Compilación Limpia Bajo Demanda**: Las librerías de Rust (`libsonora_rust.so`) y C++ (`libsonora_dsp.so`) se compilan bajo demanda a partir del código fuente. En el pipeline de **GitHub Actions**, el runner compila los `.so` en tiempo real para las 4 arquitecturas antes de ensamblar el APK final.
 
 ---
 

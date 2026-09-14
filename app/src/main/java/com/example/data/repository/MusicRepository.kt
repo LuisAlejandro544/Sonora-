@@ -24,6 +24,7 @@ class MusicRepository(
     val allTracks: Flow<List<TrackEntity>> = dao.getAllTracks()
     val favoriteTracks: Flow<List<TrackEntity>> = dao.getFavoriteTracks()
     val recentlyAddedTracks: Flow<List<TrackEntity>> = dao.getRecentlyAddedTracks(12)
+    val mostPlayedTracks: Flow<List<TrackEntity>> = dao.getMostPlayedTracks(10)
     val allPlaylists: Flow<List<PlaylistEntity>> = dao.getAllPlaylists()
     val totalTrackCount: Flow<Int> = dao.getTotalTrackCount()
     val totalStorageBytes: Flow<Long?> = dao.getTotalStorageBytes()

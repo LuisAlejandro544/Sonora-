@@ -43,3 +43,16 @@ rust_core/target/
 **/*.a
 **/*.d
 compile_commands.json
+
+# ==============================================================================
+# Librerías nativas compiladas (.so) y directorios jniLibs
+# (Protección contra filtraciones de código binario, fugas y bloat en el repositorio)
+# ==============================================================================
+*.so
+**/*.so
+*.dylib
+*.dll
+app/src/main/jniLibs/
+src/main/jniLibs/
+**/jniLibs/
+

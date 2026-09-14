@@ -76,6 +76,7 @@ fun MainScreen(
     val allTracks by viewModel.allTracks.collectAsStateWithLifecycle()
     val favoriteTracks by viewModel.favoriteTracks.collectAsStateWithLifecycle()
     val recentlyAdded by viewModel.recentlyAddedTracks.collectAsStateWithLifecycle()
+    val mostPlayedTracks by viewModel.mostPlayedTracks.collectAsStateWithLifecycle()
     val playlists by viewModel.allPlaylists.collectAsStateWithLifecycle()
     val totalStorageBytes by viewModel.totalStorageBytes.collectAsStateWithLifecycle()
     val totalTrackCount by viewModel.totalTrackCount.collectAsStateWithLifecycle()
@@ -183,6 +184,7 @@ fun MainScreen(
                         allTracks = allTracks,
                         favoriteTracks = favoriteTracks,
                         recentlyAdded = recentlyAdded,
+                        mostPlayedTracks = mostPlayedTracks,
                         playbackState = playbackState,
                         totalStorageBytes = totalStorageBytes,
                         isImporting = isImporting,

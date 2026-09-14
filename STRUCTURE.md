@@ -15,11 +15,11 @@ Este documento detalla la organización del código fuente, los submódulos de c
 │   │       ├── cpp/                      # Código nativo en C++ (Motor DSP)
 │   │       │   ├── CMakeLists.txt        # Configuración de compilación CMake (Clang -O3)
 │   │       │   └── sonora_dsp.cpp        # Filtros Biquad, limitador Soft-Clip y ecualización
-│   │       ├── jniLibs/                  # Binarios nativos precompilados (.so) por ABI
-│   │       │   ├── arm64-v8a/            # Arquitectura ARM 64 bits (libsonora_rust.so)
-│   │       │   ├── armeabi-v7a/          # Arquitectura ARM 32 bits (libsonora_rust.so)
-│   │       │   ├── x86/                  # Arquitectura x86 32 bits (libsonora_rust.so)
-│   │       │   └── x86_64/               # Arquitectura x86 64 bits (libsonora_rust.so)
+│   │       ├── jniLibs/                  # Binarios generados (.so) ignorados en Git por .gitignore
+│   │       │   ├── arm64-v8a/            # Arquitectura ARM 64 bits (libsonora_rust.so generado)
+│   │       │   ├── armeabi-v7a/          # Arquitectura ARM 32 bits (libsonora_rust.so generado)
+│   │       │   ├── x86/                  # Arquitectura x86 32 bits (libsonora_rust.so generado)
+│   │       │   └── x86_64/               # Arquitectura x86 64 bits (libsonora_rust.so generado)
 │   │       ├── java/com/example/         # Código fuente Kotlin
 │   │       │   ├── MainActivity.kt       # Actividad principal y punto de entrada Compose
 │   │       │   ├── data/                 # Capa de datos y persistencia local
@@ -42,6 +42,7 @@ Este documento detalla la organización del código fuente, los submódulos de c
 │   │       │       ├── SonoraMainApp.kt  # Estructura de navegación principal y barra inferior
 │   │       │       ├── components/       # Componentes de interfaz reutilizables
 │   │       │       │   ├── Semi3DCard.kt # Tarjetas con relieve visual y sombras multicapa
+│   │       │       │   ├── MostPlayedSection.kt # Podio de canciones más reproducidas con insignias semi-3D
 │   │       │       │   ├── AudioVisualizer.kt # Visualizador rítmico de ondas
 │   │       │       │   └── MiniPlayerBar.kt   # Barra persistente de reproducción
 │   │       │       ├── screens/          # Pantallas independientes de la app
@@ -77,7 +78,7 @@ Este documento detalla la organización del código fuente, los submódulos de c
 - **Pantallas Desacopladas**: Cada pantalla (`NowPlayingScreen`, `LibraryScreen`, `PlaylistsScreen`, `EqualizerScreen`, `SettingsScreen`) es un componente autónomo con su propio flujo de interacción, evitando pantallas únicas saturadas.
 
 ### 2. Capa de Reproducción (`app/src/main/java/com/example/player`)
-- **AndroidX Media3**: Utiliza la API moderna de medios para garantizar compatibilidad con Android 7.0 hasta Android 14+.
+- **AndroidX Media3**: Utiliza la API moderna de medios para garantizar compatibilidad con Android 8.0 (API 26) hasta Android 16.
 - **`SonoraAudioService`**: Servicio `MediaSessionService` que mantiene la reproducción activa en segundo plano con control mediante notificación interactiva (Play, Pause, Skip, barra de progreso).
 
 ### 3. Capa de Datos (`app/src/main/java/com/example/data`)

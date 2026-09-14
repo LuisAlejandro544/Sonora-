@@ -94,6 +94,13 @@ def main():
     eliminados = purgar_archivos_patron(".", patrones_basura)
     print(f" [✓] Archivos temporales purgados: {eliminados}")
 
+    # 4. Purgar archivos .so si se especifica el argumento --purgar-so o --all
+    if len(sys.argv) > 1 and sys.argv[1] in ["--purgar-so", "--all"]:
+        print("-> Purgando binarios compilados .so y carpetas jniLibs...")
+        purgar_directorio("app/src/main/jniLibs")
+        so_eliminados = purgar_archivos_patron(".", [".so"])
+        print(f" [✓] Binarios .so eliminados para proteger el repositorio: {so_eliminados}")
+
     # Verificación final
     if not os.path.exists("rust_core/target"):
         print(" [✓] Verificación: rust_core/target no existe. Limpieza completada.")

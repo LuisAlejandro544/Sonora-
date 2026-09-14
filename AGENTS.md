@@ -19,6 +19,8 @@ Este archivo contiene las directivas prioritarias y mandatorias para cualquier a
 - **Compatibilidad de Arquitecturas (32 y 64 bits)**:
   - Soporte obligatorio para las 4 ABIs de Android: `arm64-v8a`, `armeabi-v7a`, `x86_64` y `x86`.
   - Asegurar que la lógica de punteros y buffers no colapse en procesadores de 32 bits.
+- **Exclusión de Binarios `.so` en Git**:
+  - Los archivos `.so` y la carpeta `jniLibs/` están excluidos en `.gitignore`. La compilación de librerías nativas se ejecuta on-the-fly en CI o mediante scripts locales, garantizando que no se suban binarios compilados al repositorio.
 - **Limpieza de Residuos Nativos**:
   - Tras cualquier compilación de Rust o CMake que genere archivos intermedios, ejecutar siempre `./limpiar_archivos_nativos.sh` para evitar residuos en el repositorio.
 
@@ -42,6 +44,7 @@ Este archivo contiene las directivas prioritarias y mandatorias para cualquier a
 
 ## 5. Reglas de Seguridad y Buenas Prácticas
 
+- **Versión Mínima de Android**: La app tiene fijado `minSdk = 26` (Android 8.0 Oreo). Todo componente o API utilizado debe ser compatible con API 26 o superior.
 - **Prohibición de `persist.sys.*`**: En cualquier funcionalidad de aceleración, optimización o rendimiento, jamás modificar ni consultar propiedades de sistema que comiencen con `persist.sys.*`, protegiendo la integridad del dispositivo móvil.
 - **Explicaciones en Código**: Todos los archivos de código fuente deben incluir comentarios claros en español explicando el propósito de la lógica, los métodos y la arquitectura.
 - **Gestión de `commit_message.txt`**: Si existe o se consulta este archivo, su contenido debe mantenerse siempre en **español** y no debe alterarse a menos que el usuario lo solicite explícitamente.

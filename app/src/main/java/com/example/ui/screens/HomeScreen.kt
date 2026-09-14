@@ -52,6 +52,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.local.TrackEntity
 import com.example.player.PlaybackState
+import com.example.ui.components.MostPlayedSection
 import com.example.ui.components.Semi3DCard
 import com.example.ui.components.SonoraAlbumArt
 import com.example.ui.components.SonoraTrackItem
@@ -80,6 +81,7 @@ fun HomeScreen(
     allTracks: List<TrackEntity>,
     favoriteTracks: List<TrackEntity>,
     recentlyAdded: List<TrackEntity>,
+    mostPlayedTracks: List<TrackEntity> = emptyList(),
     playbackState: PlaybackState,
     totalStorageBytes: Long?,
     isImporting: Boolean,
@@ -556,6 +558,20 @@ fun HomeScreen(
                         }
                     }
                 }
+            }
+        }
+
+        // Sección: Canciones más escuchadas (Heavy Rotation / Top reproducidas)
+        if (allTracks.isNotEmpty()) {
+            item {
+                MostPlayedSection(
+                    mostPlayedTracks = mostPlayedTracks,
+                    allTracks = allTracks,
+                    playbackState = playbackState,
+                    onPlayTrack = onPlayTrack,
+                    onPlayAll = onPlayAll,
+                    onToggleFavorite = onToggleFavorite
+                )
             }
         }
     }

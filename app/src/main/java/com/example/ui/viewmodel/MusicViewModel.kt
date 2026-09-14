@@ -59,6 +59,9 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     val recentlyAddedTracks: StateFlow<List<TrackEntity>> = repository.recentlyAddedTracks
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    val mostPlayedTracks: StateFlow<List<TrackEntity>> = repository.mostPlayedTracks
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
     val allPlaylists: StateFlow<List<PlaylistEntity>> = repository.allPlaylists
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
@@ -158,6 +161,9 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     fun playTrack(track: TrackEntity, customQueue: List<TrackEntity>? = null) {
         val queue = customQueue ?: allTracks.value
         playbackManager.playTrack(track, queue)
+        viewModelScope.launch {
+            repository.incrementPlayCount(track.id)
+        }
     }
 
     fun playAll(tracks: List<TrackEntity>, shuffle: Boolean = false) {

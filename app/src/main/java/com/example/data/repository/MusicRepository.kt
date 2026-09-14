@@ -6,6 +6,7 @@ import com.example.data.local.PlaylistEntity
 import com.example.data.local.PlaylistTrackCrossRef
 import com.example.data.local.SonoraDao
 import com.example.data.local.TrackEntity
+import com.example.data.storage.SonoraStorageManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.withContext
@@ -42,11 +43,11 @@ class MusicRepository(
         dao.incrementPlayCount(trackId)
     }
 
-    suspend fun importTracksFromUris(uris: List<Uri>): Int {
+    suspend fun importTracksFromUris(uris: List<Uri>): List<TrackEntity> {
         return importer.importAudioUris(uris)
     }
 
-    suspend fun seedSampleTracksIfEmpty(): Int {
+    suspend fun seedSampleTracksIfEmpty(): List<TrackEntity> {
         return importer.createSampleTracksIfEmpty()
     }
 
@@ -76,5 +77,57 @@ class MusicRepository(
 
         // Eliminar de base de datos Room
         dao.deleteTrack(track)
+    }
+
+    /**
+     * Actualiza los metadatos de una pista (título, artista, álbum) en la base de datos Room
+     * y sincroniza los archivos locales de metadatos de texto y el conector JSON.
+     */
+    suspend fun updateTrackMetadata(
+        trackId: Long,
+        newTitle: String,
+        newArtist: String,
+        newAlbum: String
+    ): TrackEntity? = withContext(Dispatchers.IO) {
+        val existing = dao.getTrackById(trackId) ?: return@withContext null
+        val updated = existing.copy(
+            title = newTitle.trim(),
+            artist = newArtist.trim().ifEmpty { "Artista desconocido" },
+            album = newAlbum.trim().ifEmpty { "Álbum desconocido" }
+        )
+        dao.updateTrack(updated)
+
+        // Sincronizar archivo físico en [metadatos/] y [registros_json/]
+        try {
+            val songFile = File(existing.filePath)
+            val trackUuid = songFile.nameWithoutExtension.substringAfterLast("_", "")
+            if (trackUuid.isNotEmpty()) {
+                val metaFile = importer.storageManager.saveMetadataFile(
+                    trackUuid = trackUuid,
+                    title = updated.title,
+                    artist = updated.artist,
+                    album = updated.album,
+                    durationMs = updated.durationMs
+                )
+                val jsonRecord = SonoraStorageManager.AudioTrackRecord(
+                    trackUuid = trackUuid,
+                    title = updated.title,
+                    artist = updated.artist,
+                    album = updated.album,
+                    songFilePath = updated.filePath,
+                    webpCoverPath = updated.albumArtPath,
+                    metadataFilePath = metaFile.absolutePath,
+                    jsonRecordPath = File(importer.storageManager.jsonRecordsDir, "record_${trackUuid}.json").absolutePath,
+                    durationMs = updated.durationMs,
+                    fileSize = updated.fileSize,
+                    mimeType = updated.mimeType ?: "audio/mpeg"
+                )
+                importer.storageManager.saveJsonRecord(jsonRecord)
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+
+        updated
     }
 }

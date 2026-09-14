@@ -32,26 +32,35 @@ Este documento detalla la organización del código fuente, los submódulos de c
 │   │       │   │   └── repository/       # Patrón Repository para base de datos y archivos
 │   │       │   │       └── MusicRepository.kt
 │   │       │   ├── player/               # Capa de reproducción de audio y servicio
-│   │       │   │   ├── PlaybackManager.kt         # MediaSessionService para segundo plano
-│   │       │   │   └── PlaybackState.kt           # Estados reactivos de reproducción
+│   │       │   │   ├── PlaybackManager.kt         # ExoPlayer + MediaSessionService con Gapless Playback
+│   │       │   │   ├── PlaybackState.kt           # Estados reactivos de reproducción (incluye flag isGaplessEnabled)
+│   │       │   │   └── equalizer/                 # Ecualizador de 10 bandas y DSP C++
+│   │       │   │       ├── EqualizerModel.kt      # Modelos de datos y frecuencias de 10 bandas
+│   │       │   │       ├── EqualizerManager.kt    # Gestor persistente en Room del ecualizador
+│   │       │   │       └── Sonora10BandAudioProcessor.kt # AudioProcessor Media3 para ExoPlayer
 │   │       │   ├── sonora/nativeengine/  # Capa de integración nativa (JNI)
 │   │       │   │   ├── SonoraCppBridge.kt        # Puente JNI con libsonora_dsp.so
 │   │       │   │   ├── SonoraRustBridge.kt       # Puente JNI con libsonora_rust.so (FFT, dBFS, Metadatos)
 │   │       │   │   └── NativeEngineManager.kt    # Detección de ABI (32/64b) y benchmarks
 │   │       │   └── ui/                   # Capa de presentación (Jetpack Compose)
-│   │       │       ├── SonoraMainApp.kt  # Estructura de navegación principal y barra inferior
+│   │       │       ├── MainScreen.kt     # Estructura de navegación principal y barra inferior
 │   │       │       ├── components/       # Componentes de interfaz reutilizables
 │   │       │       │   ├── Semi3DCard.kt # Tarjetas con relieve visual y sombras multicapa
 │   │       │       │   ├── MostPlayedSection.kt # Podio de canciones más reproducidas con insignias semi-3D
 │   │       │       │   ├── AudioVisualizer.kt # Visualizador rítmico de ondas
-│   │       │       │   └── MiniPlayerBar.kt   # Barra persistente de reproducción
+│   │       │       │   ├── MiniPlayerBar.kt   # Barra persistente de reproducción con favorito animado
+│   │       │       │   ├── CommonComponents.kt # Items de pista con menú contextual y opciones
+│   │       │       │   └── EditMetadataDialog.kt # Diálogo flotante para edición de título, artista y álbum
+│   │       │       ├── player/           # Vistas de reproducción
+│   │       │       │   ├── FullScreenPlayer.kt # Pantalla completa de reproducción con controles y favorito
+│   │       │       │   └── MiniPlayerBar.kt   # Barra persistente inferior
 │   │       │       ├── screens/          # Pantallas independientes de la app
-│   │       │       │   ├── NowPlayingScreen.kt # Pantalla completa de reproducción actual
-│   │       │       │   ├── LibraryScreen.kt    # Explorador y gestor de canciones locales
+│   │       │       │   ├── HomeScreen.kt       # Pantalla de inicio con podio y accesos directos
+│   │       │       │   ├── LibraryScreen.kt    # Explorador y gestor de canciones locales con edición
 │   │       │       │   ├── PlaylistsScreen.kt  # Creación y administración de listas
-│   │       │       │   ├── EqualizerScreen.kt  # Ecualizador gráfico con presets
-│   │       │       │   └── SettingsScreen.kt   # Ajustes, diagnósticos y benchmark nativo
-│   │       │       └── theme/            # Sistema de diseño, paleta y tipografías M3
+│   │       │       │   ├── EqualizerScreen.kt  # Ecualizador gráfico de 10 bandas con presets
+│   │       │       │   └── SettingsScreen.kt   # Ajustes (Gapless, tipografía propia), diagnósticos y benchmark nativo
+│   │       │       └── theme/            # Sistema de diseño, paleta, tipografías M3 y aislamiento de fontScale (1.0f)
 │   │       └── res/                      # Recursos Android (strings, vectores, iconos)
 ├── rust_core/                            # Subproyecto nativo independiente en Rust
 │   ├── Cargo.toml                        # Configuración del crate 'sonora_rust'

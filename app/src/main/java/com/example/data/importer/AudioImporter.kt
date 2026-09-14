@@ -40,24 +40,25 @@ class AudioImporter(
 
     /**
      * Importa una lista de Uris seleccionadas manualmente por el usuario.
-     * Retorna el número de pistas importadas exitosamente.
+     * Inserta cada pista en la base de datos Room y retorna la lista de pistas importadas
+     * para permitir su reproducción inmediata y automática.
      */
-    suspend fun importAudioUris(uris: List<Uri>): Int = withContext(Dispatchers.IO) {
-        var importedCount = 0
+    suspend fun importAudioUris(uris: List<Uri>): List<TrackEntity> = withContext(Dispatchers.IO) {
+        val importedTracks = mutableListOf<TrackEntity>()
 
         for (uri in uris) {
             try {
                 val track = processUri(uri)
                 if (track != null) {
-                    dao.insertTrack(track)
-                    importedCount++
+                    val generatedId = dao.insertTrack(track)
+                    importedTracks.add(track.copy(id = generatedId))
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
             }
         }
 
-        importedCount
+        importedTracks
     }
 
     /**
@@ -216,9 +217,7 @@ class AudioImporter(
      * Genera pistas de audio de demostración (archivos WAV con acordes armónicos)
      * para que el usuario pueda probar el reproductor inmediatamente si aún no ha transferido canciones.
      */
-    suspend fun createSampleTracksIfEmpty(): Int = withContext(Dispatchers.IO) {
-        val currentCount = dao.getRecentlyAddedTracks(1)
-        // Solo generamos si la base de datos está vacía
+    suspend fun createSampleTracksIfEmpty(): List<TrackEntity> = withContext(Dispatchers.IO) {
         val sample1 = generateHarmonicWav(
             filename = "sonora_vibes_lofi.wav",
             title = "Midnight Horizon",
@@ -246,8 +245,11 @@ class AudioImporter(
             durationSeconds = 20
         )
 
-        listOf(sample1, sample2, sample3).forEach { dao.insertTrack(it) }
-        3
+        val samples = listOf(sample1, sample2, sample3).map { track ->
+            val id = dao.insertTrack(track)
+            track.copy(id = id)
+        }
+        samples
     }
 
     /**

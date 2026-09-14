@@ -25,7 +25,8 @@ data class PlaybackState(
     val queue: List<TrackEntity> = emptyList(),
     val currentIndex: Int = -1,
     val isBuffering: Boolean = false,
-    val errorMessage: String? = null
+    val errorMessage: String? = null,
+    val isGaplessEnabled: Boolean = true
 ) {
     val progressFraction: Float
         get() = if (durationMs > 0L) {

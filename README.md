@@ -11,13 +11,22 @@ El proyecto está diseñado pensando en la libertad del usuario, rendimiento en 
 - **Interfaz Rica y Moderna (Jetpack Compose)**:
   - Diseño con volumen y profundidad visual mediante componentes semi-3D y sombras dinámicas.
   - Navegación modular entre pantallas dedicadas: *Reproducción Actual (Now Playing)*, *Biblioteca de Canciones*, *Gestión de Playlists*, *Ecualizador Gráfico & DSP* y *Ajustes Técnicos*.
+  - **Aislamiento Tipográfico Propio (`fontScale = 1.0f`)**: La aplicación cuenta con su propia escala tipográfica calibrada e invariable mediante `CompositionLocalProvider`, evitando desbordamientos o choques con el tamaño de letra del sistema que el usuario tenga en su teléfono móvil.
   - Podio dinámico de **"Más escuchadas"** en la pantalla de Inicio: insignia metálica por puesto (#1 oro, #2 plata/cian, #3 bronce), contador de reproducciones en vivo y acceso directo a cola de alta rotación.
+  - **Sistema de Favoritos Reactivo e Instantáneo**: Marcado con corazón en verde esmeralda brillante (`#00E676`) con animación elástica de escala y persistencia atómica tanto en el mini-reproductor persistente como en el reproductor a pantalla completa, podio y biblioteca.
+  - **Editor de Metadatos Integrado**: Modificación visual directa del título, artista y álbum mediante diálogo dedicado (`EditMetadataDialog`), accesible desde el menú contextual de cada canción y desde el reproductor a pantalla completa.
   - Visualizador rítmico de audio en tiempo real impulsado por cálculo de frecuencias.
 
+- **Reproducción Sin Pausas (Gapless Playback) & Auto-Play**:
+  - **Gapless Nativo**: Precarga y encadenamiento continuo de pistas consecutivas sin micro-silencios ni retardos de decodificación, activable/desactivable en Ajustes. Ideal para grabaciones en vivo, sesiones de mezclas y álbumes conceptuales.
+  - **Auto-Reproducción Inmediata al Importar**: Al importar canciones desde el almacenamiento o al añadir los temas de demostración, el reproductor inicia inmediatamente la reproducción de la primera pista importada y actualiza la cola activa sin requerir toques manuales adicionales.
+
 - **Motor Híbrido Nativo de Alto Rendimiento**:
-  - **C++ (`libsonora_dsp.so`)**:
+  - **C++ (`libsonora_dsp.so`) & Conexión Directa a ExoPlayer**:
+    - **Ecualizador de 10 Bandas Paramétrico**: Procesamiento en tiempo real con frecuencias ISO (31 Hz, 62 Hz, 125 Hz, 250 Hz, 500 Hz, 1 kHz, 2 kHz, 4 kHz, 8 kHz, 16 kHz) con ganancia de -12 dB a +12 dB.
+    - Integración directa en la tubería de audio de ExoPlayer mediante un `AudioProcessor` personalizado (`Sonora10BandAudioProcessor`) acoplado a la fábrica `DefaultRenderersFactory` de Media3.
     - Algoritmo de filtrado digital IIR Biquad paramétrico basado en el estándar de Robert Bristow-Johnson (Cookbook EQ).
-    - Limitador y saturador analógico no lineal *Soft-Clipping* (`tanh`) para prevenir distorsión digital al aplicar refuerzo dinámico de graves (*Bass Boost*).
+    - Limitador y saturador analógico no lineal *Soft-Clipping* (`tanh`) para prevenir distorsión digital al aplicar refuerzo dinámico de graves (*Bass Boost*) y preamplificación.
   - **Rust (`libsonora_rust.so`)**:
     - Extracción nativa ultrarrápida de metadatos (título, artista, álbum) en etiquetas ID3v2 (MP3) y bloques Vorbis (FLAC).
     - Extracción directa de carátulas incrustadas (`APIC` / `PICTURE`) en memoria para su conversión.
@@ -28,8 +37,8 @@ El proyecto está diseñado pensando en la libertad del usuario, rendimiento en 
 - **Arquitectura de Almacenamiento Modular Desacoplada (`android/data/com.nuestraapp/`)**:
   - `canciones/`: Almacén aislado de pistas de audio importadas.
   - `webp/`: Carátulas comprimidas en formato **WebP a máxima compresión sin pérdida de calidad (Lossless)**, reduciendo almacenamiento sin degradar la portada.
-  - `metadatos/`: Archivos legibles de texto con el nombre de la canción, artista y álbum.
-  - `registros_json/`: Archivos `.json` conectores que vinculan cada archivo de audio, su carátula WebP y su archivo de metadatos para trazabilidad e indexación total.
+  - `metadatos/`: Archivos legibles de texto plano con el nombre de la canción, artista y álbum sincronizados automáticamente al editar cualquier campo.
+  - `registros_json/`: Archivos `.json` conectores que vinculan cada archivo de audio, su carátula WebP y su archivo de metadatos para trazabilidad e indexación total. Sincronización bidireccional al editar metadatos.
 
 - **Soporte Multi-Arquitectura Completo**:
   - Compilación nativa optimizada para procesadores de **64 bits** (`arm64-v8a`, `x86_64`) y de **32 bits** (`armeabi-v7a`, `x86`).

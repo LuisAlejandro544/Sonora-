@@ -1,6 +1,8 @@
 package com.example.ui.player
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.BorderStroke
@@ -18,10 +20,10 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.SkipNext
-import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -31,9 +33,11 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -140,18 +144,26 @@ fun MiniPlayerBar(
                         )
                     }
 
-                    // Botón de favorito
+                    // Botón de favorito con tamaño táctil ergonómico de 48dp y animación reactiva
+                    val heartScale by animateFloatAsState(
+                        targetValue = if (currentTrack.isFavorite) 1.15f else 1.0f,
+                        animationSpec = spring(dampingRatio = 0.5f, stiffness = 400f),
+                        label = "mini_heart_scale"
+                    )
+
                     IconButton(
                         onClick = onToggleFavorite,
                         modifier = Modifier
-                            .size(38.dp)
+                            .size(48.dp)
                             .testTag("mini_favorite_btn")
                     ) {
                         Icon(
                             imageVector = if (currentTrack.isFavorite) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
                             contentDescription = if (currentTrack.isFavorite) "Quitar de favoritos" else "Añadir a favoritos",
                             tint = if (currentTrack.isFavorite) SonoraHeartActive else SonoraTextMuted,
-                            modifier = Modifier.size(20.dp)
+                            modifier = Modifier
+                                .size(24.dp)
+                                .scale(heartScale)
                         )
                     }
 

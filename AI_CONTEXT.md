@@ -26,6 +26,10 @@ Este documento proporciona contexto técnico, restricciones operativas y lineami
    - Está terminantemente prohibido amontonar todas las funcionalidades en una sola pantalla única atestada.
    - Cada sección principal debe contar con su propia pantalla dedicada (`NowPlaying`, `Library`, `Playlists`, `Equalizer`, `Settings`), conectadas mediante una barra de navegación inferior intuitiva y fluida.
    - Componentes de alta densidad informativa (como `MostPlayedSection` con podio de alta rotación y contadores de reproducción) deben modularizarse en submódulos en `com.example.ui.components` manteniendo cada archivo por debajo de 500 líneas.
+3. **Aislamiento Tipográfico Propio (fontScale = 1.0f)**:
+   - Para evitar que los ajustes de accesibilidad o escala de fuente que el usuario tenga configurados globalmente en su teléfono colapsen la diagramación de la app, Sonora tiene su propio tamaño de letra calibrado.
+   - Se inyecta un `Density` inmutable con `fontScale = 1.0f` a través de `CompositionLocalProvider(LocalDensity provides customSonoraDensity)` en `SonoraTheme`.
+   - Garantiza que los faders del ecualizador de 10 bandas, contadores de tiempo y los objetivos táctiles ergonómicos mínimos de 48dp mantengan siempre proporciones perfectas e inmunes a distorsiones externas.
 
 ---
 
@@ -55,8 +59,28 @@ Este documento proporciona contexto técnico, restricciones operativas y lineami
 Para garantizar máxima velocidad, organización y preservación de memoria:
 1. **`canciones/`**: Archivos de audio (MP3, WAV, FLAC) protegidos en el sandbox de la aplicación.
 2. **`webp/`**: Carátulas incrustadas extraídas con el motor Rust y comprimidas a formato **WebP Lossless** con compresión máxima (100% de fidelidad de imagen original, sin artefactos de compresión JPEG y con menor peso en disco).
-3. **`metadatos/`**: Archivos de texto legible con el nombre de la pista, artista y álbum para consulta directa y respaldo.
-4. **`registros_json/`**: Archivos `.json` individuales que enlazan las 3 partes anteriores para correlación cruzada, respaldo y reconstrucción de la base de datos local en caso de ser necesario.
+3. **`metadatos/`**: Archivos de texto legible con el nombre de la pista, artista y álbum para consulta directa y respaldo. Se sincronizan atómicamente al editar metadatos.
+4. **`registros_json/`**: Archivos `.json` individuales que enlazan las 3 partes anteriores para correlación cruzada, respaldo y reconstrucción de la base de datos local en caso de ser necesario. Se actualizan concurrentemente con cualquier edición.
+
+---
+
+## 🎵 Arquitectura de DSP, ExoPlayer y Estado Reactivo
+
+1. **Cadena de Procesamiento de Audio ExoPlayer**:
+   - `Sonora10BandAudioProcessor` implementa la interfaz `AudioProcessor` de Media3 y procesa directamente los buffers PCM de 16 bits en coma flotante mediante el puente JNI nativo en C++.
+   - El ecualizador cuenta con 10 bandas de frecuencia ISO, preamplificador y filtro no lineal *Soft-Clipping* (`tanh`).
+   - Los cambios de ganancia se aplican en caliente sin interrupciones ni chasquidos en la reproducción.
+2. **Edición de Metadatos Sincronizada**:
+   - Al editar el título, artista o álbum de una canción, la actualización se refleja de inmediato en Room, en el fichero de texto en `metadatos/` y en el fichero de metadatos de respaldo en `registros_json/`.
+   - Si la pista editada se encuentra en reproducción activa o en la cola, `PlaybackManager` y `MusicViewModel` actualizan el objeto en memoria de forma reactiva sin requerir reinicio del reproductor.
+3. **Sistema de Favoritos Instantáneo**:
+   - El botón de corazón (favorito) alterna inmediatamente su estado visual en la UI (`SonoraHeartActive` en verde esmeralda vs contorno/gris) antes de que concluya la transacción en disco, proporcionando retroalimentación táctil de latencia cero con animación de escala elástica.
+4. **Reproducción Sin Pausas (Gapless Playback)**:
+   - Configuración avanzada de `DefaultLoadControl` con precarga anticipada (buffer de hasta 60s y prioridad de tiempo) y `pauseAtEndOfMediaItems = false` en ExoPlayer.
+   - Elimina la latencia de re-inicialización del decodificador y los micro-silencios molestos en directos y mezclas contiguas.
+   - Permite activar o desactivar la funcionalidad dinámicamente desde la pantalla de Ajustes.
+5. **Auto-Reproducción Inmediata al Importar**:
+   - Cuando el usuario añade canciones desde el selector de archivos local o inicializa los temas de demostración, Sonora inserta las pistas en Room y activa automáticamente la reproducción de la primera canción importada junto con su cola activa, eliminando fricción y facilitando la escucha directa en el móvil.
 
 ---
 

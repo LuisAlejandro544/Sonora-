@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.outlined.FavoriteBorder
@@ -160,7 +161,8 @@ fun SonoraTrackItem(
     onToggleFavorite: () -> Unit,
     onDelete: () -> Unit,
     modifier: Modifier = Modifier,
-    onAddToPlaylist: (() -> Unit)? = null
+    onAddToPlaylist: (() -> Unit)? = null,
+    onEditMetadata: (() -> Unit)? = null
 ) {
     var showMenu by remember { mutableStateOf(false) }
 
@@ -233,17 +235,17 @@ fun SonoraTrackItem(
             }
         }
 
-        // Botón de Favorito (Corazón)
+        // Botón de Favorito (Corazón verde esmeralda o contorno)
         IconButton(
             onClick = onToggleFavorite,
             modifier = Modifier
-                .size(44.dp)
+                .size(48.dp)
                 .testTag("track_favorite_btn_${track.id}")
         ) {
             Icon(
                 imageVector = if (track.isFavorite) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
                 contentDescription = if (track.isFavorite) "Quitar de favoritos" else "Añadir a favoritos",
-                tint = if (track.isFavorite) SonoraHeartActive else SonoraTextMuted,
+                tint = if (track.isFavorite) SonoraEmeraldBright else SonoraTextMuted,
                 modifier = Modifier.size(22.dp)
             )
         }
@@ -253,7 +255,7 @@ fun SonoraTrackItem(
             IconButton(
                 onClick = { showMenu = true },
                 modifier = Modifier
-                    .size(40.dp)
+                    .size(48.dp)
                     .testTag("track_options_btn_${track.id}")
             ) {
                 Icon(
@@ -269,6 +271,26 @@ fun SonoraTrackItem(
                 onDismissRequest = { showMenu = false },
                 modifier = Modifier.background(SonoraSurfaceElevated)
             ) {
+                if (onEditMetadata != null) {
+                    DropdownMenuItem(
+                        text = {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Default.Edit,
+                                    contentDescription = null,
+                                    tint = SonoraEmeraldBright,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Text("Editar metadatos", color = SonoraTextPrimary)
+                            }
+                        },
+                        onClick = {
+                            showMenu = false
+                            onEditMetadata()
+                        }
+                    )
+                }
                 if (onAddToPlaylist != null) {
                     DropdownMenuItem(
                         text = { Text("Añadir a lista", color = SonoraTextPrimary) },

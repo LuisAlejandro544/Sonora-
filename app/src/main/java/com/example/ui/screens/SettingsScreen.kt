@@ -17,6 +17,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Audiotrack
 import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.FormatSize
+import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Refresh
@@ -25,6 +27,8 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -38,6 +42,7 @@ import com.example.ui.components.Semi3DCard
 import com.example.ui.components.formatFileSize
 import com.example.ui.theme.SonoraEmerald
 import com.example.ui.theme.SonoraEmeraldBright
+import com.example.ui.theme.SonoraEmeraldDark
 import com.example.ui.theme.SonoraSurface
 import com.example.ui.theme.SonoraSurfaceHighlight
 import com.example.ui.theme.SonoraTealAccent
@@ -63,6 +68,8 @@ import com.example.sonora.nativeengine.NativeEngineManager
 fun SettingsScreen(
     totalTracks: Int,
     totalStorageBytes: Long?,
+    isGaplessEnabled: Boolean = true,
+    onToggleGapless: (Boolean) -> Unit = {},
     onSeedDemo: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -94,6 +101,108 @@ fun SettingsScreen(
             )
         }
 
+        // Sección: Reproducción Sin Pausas (Gapless Playback)
+        item {
+            Semi3DCard(
+                modifier = Modifier.fillMaxWidth(),
+                elevation = 4.dp
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.GraphicEq,
+                                contentDescription = null,
+                                tint = SonoraEmeraldBright,
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Column {
+                                Text(
+                                    text = "Reproducción Sin Pausas",
+                                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                                    color = SonoraTextPrimary
+                                )
+                                Text(
+                                    text = if (isGaplessEnabled) "Activo (Cero silencios)" else "Inactivo (Estándar)",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = if (isGaplessEnabled) SonoraEmeraldBright else SonoraTextMuted
+                                )
+                            }
+                        }
+                        Switch(
+                            checked = isGaplessEnabled,
+                            onCheckedChange = onToggleGapless,
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = SonoraEmeraldBright,
+                                checkedTrackColor = SonoraEmeraldDark,
+                                uncheckedThumbColor = SonoraTextMuted,
+                                uncheckedTrackColor = SonoraSurfaceHighlight
+                            ),
+                            modifier = Modifier.testTag("gapless_playback_switch")
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "Elimina los micro-silencios y retardos entre pistas contiguas precargando el búfer de audio. Imprescindible para álbumes en directo, pistas continuas y sesiones musicales sin interrupción.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = SonoraTextSecondary
+                    )
+                }
+            }
+        }
+
+        // Sección: Escala Tipográfica Propia
+        item {
+            Semi3DCard(
+                modifier = Modifier.fillMaxWidth(),
+                elevation = 4.dp
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.FormatSize,
+                                contentDescription = null,
+                                tint = SonoraTealAccent,
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Column {
+                                Text(
+                                    text = "Tamaño de Letra Propio",
+                                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                                    color = SonoraTextPrimary
+                                )
+                                Text(
+                                    text = "Aislamiento tipográfico calibrado (1.0x)",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = SonoraTealAccent
+                                )
+                            }
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "Sonora utiliza una escala de texto propia calibrada para que los controles, deslizadores del ecualizador y botones táctiles ergonómicos de 48dp no se desborden ni colapsen con la fuente del sistema del teléfono.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = SonoraTextSecondary
+                    )
+                }
+            }
+        }
+
         // Sección: Motor Multimedia
         item {
             Semi3DCard(
@@ -117,7 +226,7 @@ fun SettingsScreen(
                     }
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "Sonora utiliza la pila multimedia moderna de Google (Media3 1.5.1 y ExoPlayer) para decodificación de audio de baja latencia, soporte gapless y gestión de foco de audio.",
+                        text = "Sonora utiliza la pila multimedia moderna de Google (Media3 1.5.1 y ExoPlayer) para decodificación de audio de baja latencia, soporte gapless nativo y gestión de foco de audio.",
                         style = MaterialTheme.typography.bodySmall,
                         color = SonoraTextSecondary
                     )

@@ -29,8 +29,8 @@ Este documento describe la visión de desarrollo y la evolución técnica de **S
   - Soporte optimizado de formatos de alta compresión: **Opus**, **OGG Vorbis** y **AAC**.
 - [ ] **Decodificador Nativo en Rust para Formatos Específicos**:
   - Módulo nativo en Rust para decodificación y parseo de cabeceras de audio sin sobrecarga en la JVM.
-- [ ] **Reproducción Sin Pausas (Gapless Playback)**:
-  - Eliminación de silencios entre pistas consecutivas para álbumes en vivo y sinfonías clásicas.
+- [x] **Reproducción Sin Pausas (Gapless Playback)**:
+  - Eliminación de micro-silencios y retardos entre pistas consecutivas para álbumes en vivo, pistas continuas y sinfonías clásicas mediante configuración de búfer anticipado (`DefaultLoadControl`) y `pauseAtEndOfMediaItems = false` en ExoPlayer, con conmutador en la pantalla de Ajustes.
 - [ ] **Alineación de Ganancia (ReplayGain v2 / EBU R128)**:
   - Normalización automática del volumen entre diferentes canciones mediante cálculo RMS nativo en Rust.
 
@@ -38,9 +38,11 @@ Este documento describe la visión de desarrollo y la evolución técnica de **S
 
 ## 🎛️ Fase 3: Procesamiento DSP Avanzado y Ecualizador de 10 Bandas
 
-- [ ] **Expansión del Ecualizador Gráfico**:
-  - Transición de ecualizador de 5 bandas a ecualizador de **10 bandas** de alta precisión procesado íntegramente en C++.
-  - Perfiles predefinidos adicionales (Acústico, Electrónica, Voces Claras, Rock Pesado, Dinámico).
+- [x] **Expansión del Ecualizador Gráfico a 10 Bandas en C++**:
+  - Transición a ecualizador de **10 bandas paramétricas** (31 Hz a 16 kHz) procesado íntegramente en C++ nativo.
+  - Conexión directa a la tubería de audio de ExoPlayer con `Sonora10BandAudioProcessor` implementando `AudioProcessor` de Media3.
+  - Perfiles predefinidos (Plano, Refuerzo de Graves, Refuerzo de Agudos, Rock, Pop, Jazz, Clásica, Vocal, Electrónica, Acústico).
+  - Preamplificador independiente (-12 dB a +12 dB), refuerzo de graves (*Bass Boost*) y limitador no lineal analógico *Soft-Clipping* (`tanh`).
 - [ ] **Virtualizador Espacial 3D y Expansión Estéreo**:
   - Algoritmo de procesamiento binaural para auriculares en el motor C++ para emular acústica de sala de conciertos.
 - [ ] **Reverberación Convolutiva (Convolution Reverb)**:
@@ -65,13 +67,20 @@ Este documento describe la visión de desarrollo y la evolución técnica de **S
   - Podio semi-3D visual con insignias de posición metálicas (#1 oro, #2 cian/plata, #3 bronce), contador de reproducciones e inicio directo de cola en alta rotación.
 - [ ] **Listas de Reproducción Inteligentes Adicionales**:
   - Generación de listas dinámicas avanzadas ("Favoritas del mes", "Historial semanal", "Baja rotación / Redescubrir").
-- [ ] **Editor de Metadatos Integrado**:
-  - Capacidad para editar título, artista, álbum, año y género directamente desde la pantalla del teléfono.
+- [x] **Editor de Metadatos Integrado y Favoritos Reactivos**:
+  - Capacidad para editar título, artista y álbum directamente desde la pantalla del teléfono con `EditMetadataDialog`.
+  - Sincronización atómica de cambios en base de datos Room, archivos de texto plano y registros `.json`.
+  - Sistema de favoritos con botón de corazón reactivo instantáneo (verde esmeralda `#00E676` vs gris/contorno) con animación elástica y latencia cero.
+- [x] **Reproducción Automática al Importar (Auto-Play)**:
+  - Al importar archivos de audio desde el almacenamiento local del teléfono o al sembrar pistas de demostración, la aplicación inicia inmediatamente la reproducción de la primera pista importada y actualiza la cola activa sin requerir pulsaciones manuales adicionales.
 
 ---
 
 ## 🛠️ Fase 5: Experiencia Móvil, Conducción y Utilidades
 
+- [x] **Aislamiento Tipográfico Propio (Escala Fija 1.0f)**:
+  - Envoltura global de `CompositionLocalProvider(LocalDensity provides customSonoraDensity)` con escala de fuente `fontScale = 1.0f` fija.
+  - Previene que las configuraciones de accesibilidad o tamaño de fuente del sistema operativo del teléfono desborden los botones ergonómicos de 48dp, controles del ecualizador de 10 bandas o frentes de onda.
 - [ ] **Temporizador de Apagado Inteligente (Sleep Timer)**:
   - Apagado suave con desvanecimiento gradual (*fade out*) al finalizar un tiempo establecido o al terminar la pista actual.
 - [ ] **Modo Conducción / Interfaz Simplificada de Seguridad**:

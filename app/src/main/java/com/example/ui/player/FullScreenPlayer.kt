@@ -1,6 +1,8 @@
 package com.example.ui.player
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
@@ -27,7 +29,9 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.MoreVert
@@ -63,6 +67,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -110,7 +115,9 @@ fun FullScreenPlayer(
     onToggleShuffle: () -> Unit,
     onCycleRepeatMode: () -> Unit,
     onSetPlaybackSpeed: (Float) -> Unit,
-    onToggleFavorite: () -> Unit
+    onToggleFavorite: () -> Unit,
+    onOpenEqualizer: (() -> Unit)? = null,
+    onEditMetadata: (() -> Unit)? = null
 ) {
     val track = playbackState.currentTrack
 
@@ -200,18 +207,52 @@ fun FullScreenPlayer(
                         )
                     }
 
-                    IconButton(
-                        onClick = { showInfoDialog = true },
-                        modifier = Modifier
-                            .size(48.dp)
-                            .testTag("player_info_btn")
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Info,
-                            contentDescription = "Información del audio",
-                            tint = SonoraTextSecondary,
-                            modifier = Modifier.size(24.dp)
-                        )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        if (onOpenEqualizer != null) {
+                            IconButton(
+                                onClick = onOpenEqualizer,
+                                modifier = Modifier
+                                    .size(48.dp)
+                                    .testTag("player_equalizer_btn")
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.GraphicEq,
+                                    contentDescription = "Abrir ecualizador DSP",
+                                    tint = SonoraEmeraldBright,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
+                        }
+
+                        if (onEditMetadata != null) {
+                            IconButton(
+                                onClick = onEditMetadata,
+                                modifier = Modifier
+                                    .size(48.dp)
+                                    .testTag("player_edit_metadata_btn")
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Edit,
+                                    contentDescription = "Editar metadatos",
+                                    tint = SonoraEmeraldBright,
+                                    modifier = Modifier.size(22.dp)
+                                )
+                            }
+                        }
+
+                        IconButton(
+                            onClick = { showInfoDialog = true },
+                            modifier = Modifier
+                                .size(48.dp)
+                                .testTag("player_info_btn")
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Info,
+                                contentDescription = "Información del audio",
+                                tint = SonoraTextSecondary,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
                     }
                 }
 
@@ -270,7 +311,13 @@ fun FullScreenPlayer(
                         )
                     }
 
-                    // Botón de Corazón (Favorito)
+                    // Botón de Corazón (Favorito) con animación reactiva al clic
+                    val heartScale by animateFloatAsState(
+                        targetValue = if (track.isFavorite) 1.22f else 1.0f,
+                        animationSpec = spring(dampingRatio = 0.45f, stiffness = 400f),
+                        label = "full_heart_scale"
+                    )
+
                     IconButton(
                         onClick = onToggleFavorite,
                         modifier = Modifier
@@ -281,7 +328,9 @@ fun FullScreenPlayer(
                             imageVector = if (track.isFavorite) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
                             contentDescription = if (track.isFavorite) "Quitar de favoritos" else "Guardar en favoritos",
                             tint = if (track.isFavorite) SonoraHeartActive else SonoraTextSecondary,
-                            modifier = Modifier.size(30.dp)
+                            modifier = Modifier
+                                .size(30.dp)
+                                .scale(heartScale)
                         )
                     }
                 }
@@ -564,6 +613,25 @@ fun FullScreenPlayer(
                 confirmButton = {
                     TextButton(onClick = { showInfoDialog = false }) {
                         Text("Aceptar", color = SonoraEmeraldBright)
+                    }
+                },
+                dismissButton = {
+                    if (onEditMetadata != null) {
+                        TextButton(
+                            onClick = {
+                                showInfoDialog = false
+                                onEditMetadata()
+                            }
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Edit,
+                                contentDescription = null,
+                                tint = SonoraEmeraldBright,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Editar metadatos", color = SonoraEmeraldBright)
+                        }
                     }
                 },
                 containerColor = SonoraSurfaceElevated

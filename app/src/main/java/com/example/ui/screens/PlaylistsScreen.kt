@@ -84,7 +84,8 @@ fun PlaylistsScreen(
     onPlayAll: (List<TrackEntity>, Boolean) -> Unit,
     onToggleFavorite: (TrackEntity) -> Unit,
     onRemoveFromPlaylist: (Long, Long) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onEditTrack: ((TrackEntity) -> Unit)? = null
 ) {
     var showCreateDialog by remember { mutableStateOf(false) }
     var newPlaylistName by remember { mutableStateOf("") }
@@ -380,7 +381,8 @@ fun PlaylistsScreen(
                             isCurrentTrack = isCurrent,
                             onClick = { onPlayTrack(track, selectedPlaylistTracks) },
                             onToggleFavorite = { onToggleFavorite(track) },
-                            onDelete = { onRemoveFromPlaylist(selectedPlaylist.id, track.id) }
+                            onDelete = { onRemoveFromPlaylist(selectedPlaylist.id, track.id) },
+                            onEditMetadata = { onEditTrack?.invoke(track) }
                         )
                     }
                 }

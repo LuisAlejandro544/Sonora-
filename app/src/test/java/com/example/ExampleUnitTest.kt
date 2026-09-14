@@ -1,16 +1,29 @@
 package com.example
 
+import com.example.player.PlaybackState
 import org.junit.Assert.*
 import org.junit.Test
 
 /**
- * Example local unit test, which will execute on the development machine (host).
- *
- * See [testing documentation](http://d.android.com/tools/testing).
+ * Pruebas unitarias locales para Sonora.
+ * Verifica el estado del reproductor y configuración de reproducción sin pausas (Gapless Playback).
  */
 class ExampleUnitTest {
   @Test
   fun addition_isCorrect() {
     assertEquals(4, 2 + 2)
+  }
+
+  @Test
+  fun playbackState_gaplessEnabledByDefault() {
+    val state = PlaybackState()
+    assertTrue("La reproducción sin pausas debe estar habilitada por defecto para máxima fidelidad", state.isGaplessEnabled)
+  }
+
+  @Test
+  fun playbackState_gaplessCanBeToggled() {
+    val state = PlaybackState(isGaplessEnabled = true)
+    val toggled = state.copy(isGaplessEnabled = !state.isGaplessEnabled)
+    assertFalse(toggled.isGaplessEnabled)
   }
 }

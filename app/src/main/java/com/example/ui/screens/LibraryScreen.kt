@@ -98,7 +98,8 @@ fun LibraryScreen(
     onToggleFavorite: (TrackEntity) -> Unit,
     onDeleteTrack: (TrackEntity) -> Unit,
     onAddToPlaylist: (Long, Long) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onEditTrack: ((TrackEntity) -> Unit)? = null
 ) {
     val documentPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenMultipleDocuments()
@@ -397,7 +398,8 @@ fun LibraryScreen(
                         onClick = { onPlayTrack(track, displayedTracks) },
                         onToggleFavorite = { onToggleFavorite(track) },
                         onDelete = { onDeleteTrack(track) },
-                        onAddToPlaylist = { trackToAddToPlaylist = track }
+                        onAddToPlaylist = { trackToAddToPlaylist = track },
+                        onEditMetadata = { onEditTrack?.invoke(track) }
                     )
                 }
             }

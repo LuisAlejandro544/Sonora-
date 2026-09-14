@@ -9,8 +9,14 @@ import androidx.media3.common.MediaMetadata
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
+import androidx.media3.exoplayer.DefaultLoadControl
+import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.audio.AudioSink
+import androidx.media3.exoplayer.audio.DefaultAudioSink
 import com.example.data.local.TrackEntity
+import com.example.player.equalizer.EqualizerManager
+import com.example.player.equalizer.Sonora10BandAudioProcessor
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -40,8 +46,39 @@ class PlaybackManager(
     private val _playbackState = MutableStateFlow(PlaybackState())
     val playbackState: StateFlow<PlaybackState> = _playbackState.asStateFlow()
 
+    val equalizerManager: EqualizerManager = EqualizerManager.getInstance(context)
+    private val audioProcessor = Sonora10BandAudioProcessor(equalizerManager)
+
     private val exoPlayer: ExoPlayer by lazy {
-        ExoPlayer.Builder(context)
+        val renderersFactory = object : DefaultRenderersFactory(context) {
+            override fun buildAudioSink(
+                context: Context,
+                enableFloatOutput: Boolean,
+                enableAudioTrackPlaybackParams: Boolean
+            ): AudioSink {
+                return DefaultAudioSink.Builder(context)
+                    .setAudioProcessors(arrayOf(audioProcessor))
+                    .setEnableFloatOutput(enableFloatOutput)
+                    .setEnableAudioTrackPlaybackParams(enableAudioTrackPlaybackParams)
+                    .build()
+            }
+        }
+
+        // Control de búfer optimizado para Reproducción Sin Pausas (Gapless Playback).
+        // Precarga anticipada de la siguiente pista para eliminar micro-silencios y latencia entre canciones contiguas.
+        val loadControl = DefaultLoadControl.Builder()
+            .setBufferDurationsMs(
+                /* minBufferMs = */ 30_000,
+                /* maxBufferMs = */ 60_000,
+                /* bufferForPlaybackMs = */ 1_000,
+                /* bufferForPlaybackAfterRebufferMs = */ 2_000
+            )
+            .setPrioritizeTimeOverSizeThresholds(true)
+            .setBackBuffer(20_000, false)
+            .build()
+
+        ExoPlayer.Builder(context, renderersFactory)
+            .setLoadControl(loadControl)
             .build()
             .apply {
                 val audioAttributes = AudioAttributes.Builder()
@@ -49,6 +86,8 @@ class PlaybackManager(
                     .setUsage(C.USAGE_MEDIA)
                     .build()
                 setAudioAttributes(audioAttributes, true)
+                // pauseAtEndOfMediaItems = false garantiza transición continua (gapless) entre pistas
+                pauseAtEndOfMediaItems = false
                 addListener(playerListener)
             }
     }
@@ -201,6 +240,63 @@ class PlaybackManager(
     fun setPlaybackSpeed(speed: Float) {
         exoPlayer.playbackParameters = PlaybackParameters(speed)
         _playbackState.update { it.copy(playbackSpeed = speed) }
+    }
+
+    /**
+     * Activa o desactiva la Reproducción Sin Pausas (Gapless Playback).
+     * Cuando está activada, ExoPlayer precarga y encadena las pistas contiguas sin silencios.
+     */
+    fun setGaplessEnabled(enabled: Boolean) {
+        exoPlayer.pauseAtEndOfMediaItems = !enabled
+        _playbackState.update { it.copy(isGaplessEnabled = enabled) }
+    }
+
+    /**
+     * Alterna el estado de Reproducción Sin Pausas (Gapless Playback).
+     */
+    fun toggleGapless() {
+        setGaplessEnabled(!_playbackState.value.isGaplessEnabled)
+    }
+
+    /**
+     * Sincroniza en tiempo real el estado de favorito de una pista en la cola y en el reproductor activo.
+     * Permite feedback visual instantáneo en el mini reproductor y reproductor completo.
+     */
+    fun updateTrackFavorite(trackId: Long, isFavorite: Boolean) {
+        _playbackState.update { state ->
+            val updatedQueue = state.queue.map { track ->
+                if (track.id == trackId) track.copy(isFavorite = isFavorite) else track
+            }
+            val updatedCurrent = if (state.currentTrack?.id == trackId) {
+                state.currentTrack.copy(isFavorite = isFavorite)
+            } else {
+                state.currentTrack
+            }
+            state.copy(
+                queue = updatedQueue,
+                currentTrack = updatedCurrent
+            )
+        }
+    }
+
+    /**
+     * Sincroniza metadatos editados (título, artista, álbum) en la pista activa y la cola en memoria.
+     */
+    fun updateTrackMetadata(updatedTrack: TrackEntity) {
+        _playbackState.update { state ->
+            val updatedQueue = state.queue.map { track ->
+                if (track.id == updatedTrack.id) updatedTrack else track
+            }
+            val updatedCurrent = if (state.currentTrack?.id == updatedTrack.id) {
+                updatedTrack
+            } else {
+                state.currentTrack
+            }
+            state.copy(
+                queue = updatedQueue,
+                currentTrack = updatedCurrent
+            )
+        }
     }
 
     private fun startProgressUpdates() {

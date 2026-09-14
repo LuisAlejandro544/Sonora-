@@ -16,10 +16,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.LibraryMusic
 import androidx.compose.material.icons.filled.QueueMusic
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.outlined.GraphicEq
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.LibraryMusic
 import androidx.compose.material.icons.outlined.QueueMusic
@@ -43,8 +45,10 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.ui.components.EditMetadataDialog
 import com.example.ui.player.FullScreenPlayer
 import com.example.ui.player.MiniPlayerBar
+import com.example.ui.screens.EqualizerScreen
 import com.example.ui.screens.HomeScreen
 import com.example.ui.screens.LibraryScreen
 import com.example.ui.screens.PlaylistsScreen
@@ -86,6 +90,8 @@ fun MainScreen(
 
     val selectedPlaylist by viewModel.selectedPlaylist.collectAsStateWithLifecycle()
     val selectedPlaylistTracks by viewModel.selectedPlaylistTracks.collectAsStateWithLifecycle()
+    val equalizerState by viewModel.equalizerState.collectAsStateWithLifecycle()
+    val trackToEdit by viewModel.trackToEdit.collectAsStateWithLifecycle()
 
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -133,6 +139,7 @@ fun MainScreen(
                         Triple(SonoraNavTab.HOME, Icons.Filled.Home, Icons.Outlined.Home),
                         Triple(SonoraNavTab.LIBRARY, Icons.Filled.LibraryMusic, Icons.Outlined.LibraryMusic),
                         Triple(SonoraNavTab.PLAYLISTS, Icons.Filled.QueueMusic, Icons.Outlined.QueueMusic),
+                        Triple(SonoraNavTab.EQUALIZER, Icons.Filled.GraphicEq, Icons.Outlined.GraphicEq),
                         Triple(SonoraNavTab.SETTINGS, Icons.Filled.Settings, Icons.Outlined.Settings)
                     )
 
@@ -212,7 +219,8 @@ fun MainScreen(
                         onDeleteTrack = { viewModel.deleteTrack(it) },
                         onAddToPlaylist = { playlistId, trackId ->
                             viewModel.addTrackToPlaylist(playlistId, trackId)
-                        }
+                        },
+                        onEditTrack = { viewModel.setTrackToEdit(it) }
                     )
 
                     SonoraNavTab.PLAYLISTS -> PlaylistsScreen(
@@ -229,12 +237,26 @@ fun MainScreen(
                         onToggleFavorite = { viewModel.toggleFavorite(it) },
                         onRemoveFromPlaylist = { playlistId, trackId ->
                             viewModel.removeTrackFromPlaylist(playlistId, trackId)
-                        }
+                        },
+                        onEditTrack = { viewModel.setTrackToEdit(it) }
+                    )
+
+                    SonoraNavTab.EQUALIZER -> EqualizerScreen(
+                        equalizerState = equalizerState,
+                        onToggleEnabled = { viewModel.setEqualizerEnabled(it) },
+                        onBandGainChanged = { band, gain -> viewModel.setEqualizerBandGain(band, gain) },
+                        onPresetSelected = { viewModel.applyEqualizerPreset(it) },
+                        onPreampChanged = { viewModel.setEqualizerPreamp(it) },
+                        onBassBoostChanged = { viewModel.setEqualizerBassBoost(it) },
+                        onToggleSoftClip = { viewModel.setEqualizerSoftClip(it) },
+                        onReset = { viewModel.resetEqualizer() }
                     )
 
                     SonoraNavTab.SETTINGS -> SettingsScreen(
                         totalTracks = totalTrackCount,
                         totalStorageBytes = totalStorageBytes,
+                        isGaplessEnabled = playbackState.isGaplessEnabled,
+                        onToggleGapless = { viewModel.toggleGapless() },
                         onSeedDemo = { viewModel.seedDemoTracks() }
                     )
                 }
@@ -256,6 +278,24 @@ fun MainScreen(
         onSetPlaybackSpeed = { viewModel.setPlaybackSpeed(it) },
         onToggleFavorite = {
             playbackState.currentTrack?.let { viewModel.toggleFavorite(it) }
+        },
+        onOpenEqualizer = {
+            viewModel.closeFullScreenPlayer()
+            viewModel.setNavTab(SonoraNavTab.EQUALIZER)
+        },
+        onEditMetadata = {
+            playbackState.currentTrack?.let { viewModel.setTrackToEdit(it) }
         }
     )
+
+    // Diálogo flotante para editar metadatos (título, artista, álbum)
+    trackToEdit?.let { track ->
+        EditMetadataDialog(
+            track = track,
+            onDismiss = { viewModel.setTrackToEdit(null) },
+            onSave = { newTitle, newArtist, newAlbum ->
+                viewModel.updateTrackMetadata(track, newTitle, newArtist, newAlbum)
+            }
+        )
+    }
 }

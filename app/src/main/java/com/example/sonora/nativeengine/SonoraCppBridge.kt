@@ -1,15 +1,17 @@
 package com.example.sonora.nativeengine
 
 import android.util.Log
+import java.nio.ByteBuffer
 
 /**
  * ==============================================================================
  * PUENTE JNI PARA EL MOTOR DSP NATIVO C++ (libsonora_dsp.so)
  * ==============================================================================
  * Proporciona métodos de procesamiento de señales de audio digital (DSP):
- * 1. Cálculo de coeficientes de filtro biquad paramétrico (Cookbook de RBJ).
- * 2. Filtrado directo de búferes PCM en memoria con mínima sobrecarga.
- * 3. Limitador analógico Soft-Clipping (tanh) para evitar saturación en Bass Boost.
+ * 1. Ecualizador gráfico de 10 bandas ISO en tiempo real conectado a ExoPlayer.
+ * 2. Procesamiento de búferes directos PCM (ByteBuffers) con cero copias en memoria.
+ * 3. Refuerzo de graves dinámico (Low-Shelf) y limitador analógico Soft-Clipping (tanh).
+ * 4. Cálculo de coeficientes de filtro biquad paramétrico (Cookbook de RBJ).
  * ==============================================================================
  */
 object SonoraCppBridge {
@@ -36,6 +38,42 @@ object SonoraCppBridge {
      * Obtiene la descripción detallada del motor C++ (arquitectura y versión Clang).
      */
     external fun nativeGetCppEngineInfo(): String
+
+    /**
+     * Reinicia los estados de los 10 filtros biquad en C++ (limpia retardos).
+     */
+    external fun nativeReset10BandEqualizer()
+
+    /**
+     * Procesa un búfer directo (DirectByteBuffer) de PCM 16 bits sin sobrecarga de copias JNI.
+     */
+    external fun nativeProcessDirectPcm10Band(
+        inputBuffer: ByteBuffer,
+        inputOffset: Int,
+        outputBuffer: ByteBuffer,
+        outputOffset: Int,
+        numBytes: Int,
+        sampleRate: Int,
+        channelCount: Int,
+        bandGainsDb: FloatArray,
+        preampDb: Float,
+        bassBoostDb: Float,
+        softClipEnabled: Boolean
+    )
+
+    /**
+     * Procesa un arreglo de enteros cortos (PCM 16-bit) con el ecualizador nativo de 10 bandas.
+     */
+    external fun nativeProcessPcm10Band(
+        pcmSamples: ShortArray,
+        numSamples: Int,
+        sampleRate: Int,
+        channelCount: Int,
+        bandGainsDb: FloatArray,
+        preampDb: Float,
+        bassBoostDb: Float,
+        softClipEnabled: Boolean
+    )
 
     /**
      * Calcula los coeficientes de un filtro biquad Peaking EQ [b0, b1, b2, a1, a2].

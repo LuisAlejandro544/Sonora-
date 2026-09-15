@@ -25,9 +25,22 @@ Este documento proporciona contexto técnico, restricciones operativas y lineami
 2. **Modularidad de Pantallas y Componentes**:
    - Está terminantemente prohibido amontonar todas las funcionalidades en una sola pantalla única atestada.
    - La barra de navegación inferior aloja 4 destinos ergonómicos principales (`Inicio`, `Biblioteca`, `Playlists` y `Ajustes`).
+   - **Ajustes Técnicos Desacoplados por Pantallas Independientes**:
+     - La pantalla de `SettingsScreen` actúa como menú orquestador que dirige a sub-pantallas autónomas ubicadas en `com.example.ui.screens.settings`:
+       - `SettingsAudioScreen`: Gapless, ExoPlayer, Notificación Nativa y formatos.
+       - `SettingsNativeScreen`: Diagnóstico de C++17/Rust, ABI (32/64b) y benchmark interactivo.
+       - `SettingsUiScreen`: Aislamiento tipográfico (1.0x), diseño semi-3D y touch targets de 48dp.
+       - `SettingsStorageScreen`: Métricas de disco, sembrado demo y arquitectura de 4 carpetas.
+       - `SettingsAboutScreen`: Privacidad SAF, distribución en Uptodown y versión v1.0.
+     - Cada sub-pantalla dispone de barra de navegación superior con botón táctil de regreso de 48dp (`IconButton`), animación horizontal `AnimatedContent` y soporte integrado para el gesto o botón `BackHandler` del teléfono.
    - El *Ecualizador Gráfico DSP de 10 bandas* (`EqualizerScreen`) está integrado directamente dentro del reproductor a pantalla completa (`FullScreenPlayer`) mediante un botón de acceso directo con transición animada y botón de retorno, evitando saturar la barra de navegación del móvil.
    - Componentes de alta densidad informativa (como `MostPlayedSection` con podio de alta rotación y contadores de reproducción) deben modularizarse en submódulos en `com.example.ui.components` manteniendo cada archivo por debajo de 500 líneas.
-3. **Aislamiento Tipográfico Propio (fontScale = 1.0f)**:
+3. **Gestión de Playlists, Favoritos y Collage Dinámico de Carátulas**:
+   - **Lista de Favoritos Unificada**: Al pulsar el botón de corazón, la canción se agrega de inmediato a la lista especial de Canciones Favoritas (`FAVORITES_PLAYLIST_ID = -1L`).
+   - **Collage de Carátulas Inteligente**: `PlaylistCoverCollage` compone portadas dinámicas basadas en la cantidad de pistas: 1 foto si hay 1 tema, 2 fotos horizontales si hay 2 temas, y 3 fotos (1 panel grande + 2 cuadrantes) si hay 3 o más temas (no se satura con más imágenes si hay más pistas).
+   - **Carátulas Personalizadas en WebP Lossless**: Las carátulas de playlists seleccionadas por el usuario se procesan mediante `WebpLosslessCompressor` a formato WebP Lossless a máxima calidad sin pérdida y se almacenan en `sonora/portadas_webp/`.
+   - **Fondo Sólido y Opaco en el Reproductor**: El reproductor a pantalla completa (`FullScreenPlayer`) utiliza un fondo 100% opaco y oscuro (`SonoraBackground`), eliminando cualquier transparencia o solapamiento con vistas anteriores y realzando el volumen semi-3D de la carátula y los controles.
+4. **Aislamiento Tipográfico Propio (fontScale = 1.0f)**:
    - Para evitar que los ajustes de accesibilidad o escala de fuente que el usuario tenga configurados globalmente en su teléfono colapsen la diagramación de la app, Sonora tiene su propio tamaño de letra calibrado.
    - Se inyecta un `Density` inmutable con `fontScale = 1.0f` a través de `CompositionLocalProvider(LocalDensity provides customSonoraDensity)` en `SonoraTheme`.
    - Garantiza que los faders del ecualizador de 10 bandas, contadores de tiempo y los objetivos táctiles ergonómicos mínimos de 48dp mantengan siempre proporciones perfectas e inmunes a distorsiones externas.
@@ -87,6 +100,18 @@ Para garantizar máxima velocidad, organización y preservación de memoria:
    - Permite activar o desactivar la funcionalidad dinámicamente desde la pantalla de Ajustes.
 5. **Auto-Reproducción Inmediata al Importar**:
    - Cuando el usuario añade canciones desde el selector de archivos local o inicializa los temas de demostración, Sonora inserta las pistas en Room y activa automáticamente la reproducción de la primera canción importada junto con su cola activa, eliminando fricción y facilitando la escucha directa en el móvil.
+6. **Reproducción en Segundo Plano y Notificación Nativa (Media3 MediaSessionService)**:
+   - `SonoraMediaService` hereda de `MediaSessionService` de AndroidX Media3 y está declarado como servicio de tipo `mediaPlayback` en `AndroidManifest.xml`.
+   - Implementa un canal de notificación con `IMPORTANCE_LOW` y visibilidad pública para pantalla de bloqueo (`VISIBILITY_PUBLIC`).
+   - Sincroniza metadatos (título, artista), carátula en alta definición y controles de transporte interactivos (Play/Pause, Anterior, Siguiente y Scrubber temporal).
+   - Mantiene la música sonando ininterrumpidamente al salir a la pantalla de inicio o al bloquear el dispositivo móvil, liberando el servicio ordenadamente al pausar y cerrar la app para proteger la batería.
+7. **Motor de Limpieza y Sanitización de Metadatos con Rust (`cleaner.rs`)**:
+   - Módulo nativo en Rust con bindings JNI directos (`nativeSanitizeTrackMetadata` en `SonoraRustBridge`).
+   - Diseñado para que el usuario pueda con un solo toque ("Limpiar con Rust") purgar nombres sucios, prefijos numéricos de pista (`01 - `), marcas de sitios de descarga (`y2mate`, `mp3clan`, etc.) y sufijos molestos (`[320kbps]`, `[Official Video]`, `(Lyrics)`).
+   - Coordinado por `MetadataSanitizerManager`, persiste los cambios en Room SQLite y actualiza en tiempo real los registros en `metadatos/` y `registros_json/`.
+8. **Generación Automática de Playlists por Artista (Detección de 3+ Canciones)**:
+   - Administrado por `ArtistPlaylistManager`: cuando la biblioteca detecta 3 o más canciones de un mismo artista, genera automáticamente una lista de reproducción dedicada (`Colección automática de [Artista]`).
+   - Sincronización continua en segundo plano: al añadir o sanitizar nuevas canciones del mismo artista, se asocian automáticamente a la playlist existente sin duplicar pistas. Incluye insignia `Artista` en Compose y botón de sincronización ergonómico.
 
 ---
 

@@ -1,6 +1,7 @@
 package com.example.data.storage
 
 import android.content.Context
+import android.net.Uri
 import android.util.Log
 import org.json.JSONObject
 import java.io.File
@@ -140,6 +141,33 @@ class SonoraStorageManager(private val context: Context) {
      */
     fun createWebpFile(trackUuid: String): File {
         return File(webpDir, "caratula_${trackUuid}.webp")
+    }
+
+    /**
+     * Procesa una imagen seleccionada por el usuario desde la galería y la comprime
+     * a formato WebP Lossless a máxima calidad/fidelidad sin pérdida, guardándola en [webp/].
+     *
+     * @param imageUri Uri de la imagen seleccionada.
+     * @param playlistId ID de la lista para identificar la carátula.
+     * @return Ruta absoluta del archivo WebP resultante, o null si falla.
+     */
+    fun saveCustomPlaylistCover(imageUri: Uri, playlistId: Long): String? {
+        return try {
+            val destinationFile = File(webpDir, "playlist_cover_${playlistId}_${System.currentTimeMillis()}.webp")
+            val inputStream = context.contentResolver.openInputStream(imageUri) ?: return null
+            val success = inputStream.use { stream ->
+                WebpLosslessCompressor.compressStreamToWebpLossless(stream, destinationFile)
+            }
+            if (success && destinationFile.exists()) {
+                Log.d(TAG, "Carátula de playlist guardada en WebP Lossless: ${destinationFile.absolutePath}")
+                destinationFile.absolutePath
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error al guardar carátula personalizada de playlist: ${e.message}", e)
+            null
+        }
     }
 
     /**

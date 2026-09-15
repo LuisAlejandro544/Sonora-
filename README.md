@@ -11,16 +11,45 @@ El proyecto está diseñado pensando en la libertad del usuario, rendimiento en 
 - **Interfaz Rica y Moderna (Jetpack Compose)**:
   - Diseño con volumen y profundidad visual mediante componentes semi-3D y sombras dinámicas.
   - Navegación modular ergonómica: barra de navegación principal con 4 secciones clave (*Inicio*, *Biblioteca de Canciones*, *Gestión de Playlists* y *Ajustes Técnicos*).
+  - **Ajustes y Configuración Técnicos Modulares por Pantallas Independientes**:
+    - Para evitar interfaces amontonadas y saturadas en pantallas móviles, la sección de Ajustes se organiza en **sub-pantallas desacopladas e interactivas**:
+      1. *Audio y Reproducción*: Configuración de Gapless, decodificación Media3 ExoPlayer, notificación nativa interactiva y códecs admitidos.
+      2. *Aceleración Nativa*: Diagnóstico en vivo de C++17 y Rust (O3), arquitectura ABI (32 vs 64 bits) y suite de pruebas de rendimiento DSP interactiva.
+      3. *Interfaz y Ergonomía*: Aislamiento tipográfico 1.0x, filosofía Semi-3D y controles ergonómicos de 48dp para uso con una sola mano.
+      4. *Almacenamiento Local*: Estadísticas de espacio en disco, temas indexados, sembrado de canciones de demostración y arquitectura de 4 carpetas.
+      5. *Privacidad y Acerca de*: Política estricta 100% offline, compatibilidad con tiendas independientes (Uptodown / Sideload) y versión v1.0.
+    - Cada sub-pantalla cuenta con su barra superior con botón de retorno ergonómico (touch target de 48dp), animaciones horizontales fluidas y soporte nativo para el gesto o botón `BackHandler` del teléfono.
   - **Ecualizador Integrado Directamente en el Reproductor**: El *Ecualizador Gráfico DSP de 10 Bandas* cuenta con su propia interfaz completa alojada directamente dentro del reproductor a pantalla completa (*Now Playing*), con transición animada fluida y botón de retorno, evitando saturar la barra de navegación inferior en dispositivos móviles.
   - **Aislamiento Tipográfico Propio (`fontScale = 1.0f`)**: La aplicación cuenta con su propia escala tipográfica calibrada e invariable mediante `CompositionLocalProvider`, evitando desbordamientos o choques con el tamaño de letra del sistema que el usuario tenga en su teléfono móvil.
   - Podio dinámico de **"Más escuchadas"** en la pantalla de Inicio: insignia metálica por puesto (#1 oro, #2 plata/cian, #3 bronce), contador de reproducciones en vivo y acceso directo a cola de alta rotación.
-  - **Sistema de Favoritos Reactivo e Instantáneo**: Marcado con corazón en verde esmeralda brillante (`#00E676`) con animación elástica de escala y persistencia atómica tanto en el mini-reproductor persistente como en el reproductor a pantalla completa, podio y biblioteca.
+- **Gestión Avanzada de Playlists y Favoritos Estilo Spotify**:
+  - **Lista Automática de Favoritos**: Al pulsar el botón de corazón en cualquier canción, esta se incorpora de forma inmediata a la lista insignia "Canciones Favoritas", accesible desde la pantalla de listas con un solo toque y reproducción instantánea.
+  - **Creación y Personalización de Listas**: Creación de listas personalizadas con nombre, descripción y buscador interactivo modal (`AddSongsToPlaylistDialog`) para incorporar canciones en segundos estilo Spotify.
+  - **Collage Dinámico de Portadas (Máximo 3 Fotos)**:
+    - Si la lista contiene 1 sola canción, se muestra su carátula ocupando el 100% de la portada.
+    - Si contiene 2 canciones, se genera un collage dual horizontal (50% / 50%).
+    - Si contiene 3 o más canciones, se genera un collage inteligente de 3 imágenes (1 foto grande en el panel izquierdo y 2 cuadrantes en el derecho). Si hay más canciones, no se satura el collage y se mantiene la composición limpia de 3 fotos.
+  - **Carátulas Personalizadas en WebP Lossless**:
+    - El usuario puede asignar una imagen personalizada de su galería a cualquier lista.
+    - La imagen seleccionada es procesada y comprimida en formato **WebP Lossless** a máxima compresión sin pérdida de fidelidad ni degradación visual, almacenándose de forma autónoma en el almacenamiento local.
+  - **Reproductor a Pantalla Completa con Fondo Sólido y Opaco**:
+    - Se refinó la interfaz del reproductor para eliminar el fondo translúcido que causaba solapamientos visuales de pantallas previas, utilizando un fondo 100% opaco y oscuro (`SonoraBackground`), resaltando el relieve semi-3D de la carátula, los faders del ecualizador y los controles ergonómicos.
   - **Editor de Metadatos Integrado**: Modificación visual directa del título, artista y álbum mediante diálogo dedicado (`EditMetadataDialog`), accesible desde el menú contextual de cada canción y desde el reproductor a pantalla completa.
   - Visualizador rítmico de audio en tiempo real impulsado por cálculo de frecuencias.
 
 - **Reproducción Sin Pausas (Gapless Playback) & Auto-Play**:
   - **Gapless Nativo**: Precarga y encadenamiento continuo de pistas consecutivas sin micro-silencios ni retardos de decodificación, activable/desactivable en Ajustes. Ideal para grabaciones en vivo, sesiones de mezclas y álbumes conceptuales.
   - **Auto-Reproducción Inmediata al Importar**: Al importar canciones desde el almacenamiento o al añadir los temas de demostración, el reproductor inicia inmediatamente la reproducción de la primera pista importada y actualiza la cola activa sin requerir toques manuales adicionales.
+
+- **Reproducción Continua en Segundo Plano & Notificación Nativa (Media3 & ExoPlayer)**:
+  - **Servicio en Primer Plano `SonoraMediaService` (`MediaSessionService`)**: Mantiene la reproducción activa cuando el usuario sale de la aplicación, minimiza la ventana o bloquea la pantalla de su teléfono.
+  - **Notificación Nativa del Sistema Android**:
+    - Integración profunda mediante `DefaultMediaNotificationProvider` conectado directamente al `MediaSession` de ExoPlayer.
+    - Muestra la **carátula del álbum en alta resolución** (generada desde WebP sin pérdida o procedural matemática).
+    - Metadatos en tiempo real de la pista (título, artista y duración).
+    - **Controles de transporte interactivos**: Botones de *Pista Anterior*, *Reproducir/Pausar* y *Pista Siguiente*.
+    - Barra de navegación temporal interactiva (*scrubber*) en la notificación y compatibilidad completa con el reproductor nativo del panel de medios de Android 13+ y pantalla de bloqueo.
+    - **Ahorro Inteligente de Batería**: Si la reproducción se detiene y la aplicación es eliminada de la lista de tareas recientes, el servicio se detiene de forma autónoma (`stopSelf()`) para evitar consumo residual de energía.
 
 - **Motor Híbrido Nativo de Alto Rendimiento**:
   - **C++ (`libsonora_dsp.so`) & Conexión Directa a ExoPlayer**:
@@ -30,11 +59,17 @@ El proyecto está diseñado pensando en la libertad del usuario, rendimiento en 
     - Algoritmo de filtrado digital IIR Biquad paramétrico basado en el estándar de Robert Bristow-Johnson (Cookbook EQ).
     - Limitador y saturador analógico no lineal *Soft-Clipping* (`tanh`) para prevenir distorsión digital al aplicar refuerzo dinámico de graves (*Bass Boost*) y preamplificación.
   - **Rust (`libsonora_rust.so`)**:
+    - **Limpieza y Sanitización Nativa de Metadatos (`cleaner.rs`)**: Módulo de alta velocidad que depura en milisegundos títulos, artistas y álbumes corruptos con solo dar un toque ("Limpiar con Rust"). Elimina automáticamente marcas de agua web (`y2mate`, `mp3clan`, `.cc`, `www.`), sufijos de calidad (`[320kbps]`, `[Official Video]`, `(Lyrics)`), índices numéricos de pistas (`01 - `, `track01`) y espacios/guiones basura, formateando los textos limpios en JSON para su persistencia atómica.
     - Extracción nativa ultrarrápida de metadatos (título, artista, álbum) en etiquetas ID3v2 (MP3) y bloques Vorbis (FLAC).
     - Extracción directa de carátulas incrustadas (`APIC` / `PICTURE`) en memoria para su conversión.
     - Análisis espectral de baja latencia con ventana Hamming y banco de filtros logarítmico para el visualizador a 60 FPS.
     - Medidor RMS de energía acústica y cálculo de decibelios en tiempo real (dBFS).
     - Generación de hashes acústicos ultrarrápidos FNV-1a de 64 bits para deduplicación de pistas e indexación en caché.
+
+- **Generador Inteligente de Playlists por Artista (Detección Automática de 3+ Canciones)**:
+  - La aplicación monitoriza continuamente la biblioteca de audio: si detecta **3 o más canciones de un mismo artista**, crea automáticamente una lista de reproducción dedicada para ese artista (identificada con una insignia especial `Artista` en la interfaz).
+  - **Sincronización Dinámica Continua**: Cada vez que se agregan, importan o sanitizan nuevas canciones pertenecientes a un artista que ya cuenta con su lista automática, el sistema las incorpora instantáneamente sin duplicar pistas.
+  - Las listas automáticas cuentan con collage dinámico de carátulas y controles completos de reproducción y gestión.
 
 - **Generador de Carátulas Procedurales de Peso Cero (Cero Dependencia de IA Externa)**:
   - Cuando se importa una pista sin carátula incrustada, Sonora genera automáticamente una carátula vectorial procedural única y determinista basada en el hash del título y artista.

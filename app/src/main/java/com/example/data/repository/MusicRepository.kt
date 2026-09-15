@@ -4,6 +4,7 @@ import android.net.Uri
 import com.example.data.importer.AudioImporter
 import com.example.data.local.PlaylistEntity
 import com.example.data.local.PlaylistTrackCrossRef
+import com.example.data.local.PlaylistWithTracks
 import com.example.data.local.SonoraDao
 import com.example.data.local.TrackEntity
 import com.example.data.storage.SonoraStorageManager
@@ -27,13 +28,31 @@ class MusicRepository(
     val recentlyAddedTracks: Flow<List<TrackEntity>> = dao.getRecentlyAddedTracks(12)
     val mostPlayedTracks: Flow<List<TrackEntity>> = dao.getMostPlayedTracks(10)
     val allPlaylists: Flow<List<PlaylistEntity>> = dao.getAllPlaylists()
+    val allPlaylistsWithTracks: Flow<List<PlaylistWithTracks>> = dao.getPlaylistsWithTracks()
     val totalTrackCount: Flow<Int> = dao.getTotalTrackCount()
     val totalStorageBytes: Flow<Long?> = dao.getTotalStorageBytes()
+
+    val storageManager: SonoraStorageManager
+        get() = importer.storageManager
+
+    val artistPlaylistManager = ArtistPlaylistManager(dao)
+    val metadataSanitizerManager = MetadataSanitizerManager(this)
+
+    suspend fun syncArtistPlaylists(tracks: List<TrackEntity>): Int {
+        return artistPlaylistManager.syncArtistPlaylists(tracks)
+    }
+
+    suspend fun sanitizeTrack(track: TrackEntity) = metadataSanitizerManager.sanitizeTrack(track)
+
+    suspend fun sanitizeAllTracks(tracks: List<TrackEntity>): Int = metadataSanitizerManager.sanitizeAllTracks(tracks)
 
     fun searchTracks(query: String): Flow<List<TrackEntity>> = dao.searchTracks(query)
 
     fun getTracksForPlaylist(playlistId: Long): Flow<List<TrackEntity>> =
         dao.getTracksForPlaylist(playlistId)
+
+    fun getTopTrackArtPathsForPlaylist(playlistId: Long): Flow<List<String>> =
+        dao.getTopTrackArtPathsForPlaylist(playlistId)
 
     suspend fun toggleFavorite(trackId: Long, currentStatus: Boolean) = withContext(Dispatchers.IO) {
         dao.setFavorite(trackId, !currentStatus)
@@ -51,11 +70,20 @@ class MusicRepository(
         return importer.createSampleTracksIfEmpty()
     }
 
-    suspend fun createPlaylist(name: String, description: String = ""): Long = withContext(Dispatchers.IO) {
-        dao.insertPlaylist(PlaylistEntity(name = name, description = description))
+    suspend fun createPlaylist(
+        name: String,
+        description: String = "",
+        customCoverPath: String? = null
+    ): Long = withContext(Dispatchers.IO) {
+        dao.insertPlaylist(PlaylistEntity(name = name, description = description, customCoverPath = customCoverPath))
+    }
+
+    suspend fun updatePlaylistCover(playlistId: Long, coverPath: String) = withContext(Dispatchers.IO) {
+        dao.updatePlaylistCover(playlistId, coverPath)
     }
 
     suspend fun deletePlaylist(playlistId: Long) = withContext(Dispatchers.IO) {
+        dao.deletePlaylistTracks(playlistId)
         dao.deletePlaylist(playlistId)
     }
 

@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AutoFixHigh
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.MoreVert
@@ -162,7 +163,8 @@ fun SonoraTrackItem(
     onDelete: () -> Unit,
     modifier: Modifier = Modifier,
     onAddToPlaylist: (() -> Unit)? = null,
-    onEditMetadata: (() -> Unit)? = null
+    onEditMetadata: (() -> Unit)? = null,
+    onSanitizeWithRust: (() -> Unit)? = null
 ) {
     var showMenu by remember { mutableStateOf(false) }
 
@@ -271,6 +273,26 @@ fun SonoraTrackItem(
                 onDismissRequest = { showMenu = false },
                 modifier = Modifier.background(SonoraSurfaceElevated)
             ) {
+                if (onSanitizeWithRust != null) {
+                    DropdownMenuItem(
+                        text = {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Default.AutoFixHigh,
+                                    contentDescription = null,
+                                    tint = SonoraEmeraldBright,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Text("Limpiar con Rust", color = SonoraTextPrimary)
+                            }
+                        },
+                        onClick = {
+                            showMenu = false
+                            onSanitizeWithRust()
+                        }
+                    )
+                }
                 if (onEditMetadata != null) {
                     DropdownMenuItem(
                         text = {

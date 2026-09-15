@@ -15,6 +15,8 @@ use std::f32::consts::PI;
 use std::fs::File;
 use std::io::Read;
 
+pub mod cleaner;
+
 /// Devuelve la información de versión, arquitectura nativa y estado del motor Rust.
 #[no_mangle]
 pub extern "system" fn Java_com_example_sonora_nativeengine_SonoraRustBridge_nativeGetRustEngineInfo(
@@ -534,4 +536,57 @@ pub extern "system" fn Java_com_example_sonora_nativeengine_SonoraRustBridge_nat
         std::ptr::null_mut()
     }
 }
+
+/// Sanea y limpia metadatos de audio (título, artista, álbum) en Rust de forma nativa.
+/// Corrige mojibake, elimina etiquetas de ripeo web y caracteres basura, y normaliza nombres.
+/// Devuelve un string JSON estructurado: {"title":"...","artist":"...","album":"...","wasModified":true/false}
+#[no_mangle]
+pub extern "system" fn Java_com_example_sonora_nativeengine_SonoraRustBridge_nativeSanitizeTrackMetadata(
+    mut env: JNIEnv,
+    _class: JClass,
+    title: JString,
+    artist: JString,
+    album: JString,
+    file_path: JString,
+) -> jstring {
+    let title_str: String = match env.get_string(&title) {
+        Ok(s) => s.into(),
+        Err(_) => String::new(),
+    };
+    let artist_str: String = match env.get_string(&artist) {
+        Ok(s) => s.into(),
+        Err(_) => String::new(),
+    };
+    let album_str: String = match env.get_string(&album) {
+        Ok(s) => s.into(),
+        Err(_) => String::new(),
+    };
+    let path_str: String = match env.get_string(&file_path) {
+        Ok(s) => s.into(),
+        Err(_) => String::new(),
+    };
+
+    let cleaned = cleaner::sanitize_track_metadata(
+        &title_str,
+        &artist_str,
+        &album_str,
+        &path_str,
+    );
+
+    // Escape de caracteres especiales para JSON válido
+    let safe_title = cleaned.title.replace('\\', "\\\\").replace('"', "\\\"");
+    let safe_artist = cleaned.artist.replace('\\', "\\\\").replace('"', "\\\"");
+    let safe_album = cleaned.album.replace('\\', "\\\\").replace('"', "\\\"");
+
+    let json_resp = format!(
+        "{{\"title\":\"{}\",\"artist\":\"{}\",\"album\":\"{}\",\"wasModified\":{}}}",
+        safe_title, safe_artist, safe_album, cleaned.was_modified
+    );
+
+    match env.new_string(json_resp) {
+        Ok(js) => js.into_raw(),
+        Err(_) => std::ptr::null_mut(),
+    }
+}
+
 

@@ -6,6 +6,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.data.importer.AudioImporter
 import com.example.data.local.PlaylistEntity
+import com.example.data.local.PlaylistWithTracks
 import com.example.data.local.SonoraDatabase
 import com.example.data.local.TrackEntity
 import com.example.data.repository.MusicRepository
@@ -45,9 +46,11 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     private val importer = AudioImporter(application, database.sonoraDao())
     private val repository = MusicRepository(database.sonoraDao(), importer)
 
-    private val playbackManager = PlaybackManager(application) { finishedTrack ->
-        viewModelScope.launch {
-            repository.incrementPlayCount(finishedTrack.id)
+    private val playbackManager = PlaybackManager.getInstance(application).apply {
+        setTrackFinishedListener { finishedTrack ->
+            viewModelScope.launch {
+                repository.incrementPlayCount(finishedTrack.id)
+            }
         }
     }
 
@@ -68,6 +71,9 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val allPlaylists: StateFlow<List<PlaylistEntity>> = repository.allPlaylists
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val allPlaylistsWithTracks: StateFlow<List<PlaylistWithTracks>> = repository.allPlaylistsWithTracks
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val totalTrackCount: StateFlow<Int> = repository.totalTrackCount
@@ -118,17 +124,30 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
                         playbackManager.updateTrackMetadata(updatedInDb)
                     }
                 }
+                // Detección y creación/actualización automática de playlists si hay 3+ canciones del mismo artista
+                if (tracksList.isNotEmpty()) {
+                    repository.syncArtistPlaylists(tracksList)
+                }
             }
         }
+    }
+
+    companion object {
+        const val FAVORITES_PLAYLIST_ID = -1L
+        val FAVORITES_PLAYLIST = PlaylistEntity(
+            id = FAVORITES_PLAYLIST_ID,
+            name = "Canciones Favoritas",
+            description = "Tus canciones marcadas con corazón"
+        )
     }
 
     @OptIn(ExperimentalCoroutinesApi::class)
     val selectedPlaylistTracks: StateFlow<List<TrackEntity>> = _selectedPlaylist
         .flatMapLatest { playlist ->
-            if (playlist != null) {
-                repository.getTracksForPlaylist(playlist.id)
-            } else {
-                flowOf(emptyList())
+            when {
+                playlist == null -> flowOf(emptyList())
+                playlist.id == FAVORITES_PLAYLIST_ID -> repository.favoriteTracks
+                else -> repository.getTracksForPlaylist(playlist.id)
             }
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
@@ -279,10 +298,34 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun createPlaylist(name: String, description: String = "") {
+    fun createPlaylist(name: String, description: String = "", customCoverUri: Uri? = null) {
+        if (name.isBlank()) {
+            _userMessage.value = "El nombre de la lista no puede estar vacío"
+            return
+        }
         viewModelScope.launch {
-            repository.createPlaylist(name, description)
+            var coverPath: String? = null
+            if (customCoverUri != null) {
+                val tempId = System.currentTimeMillis()
+                coverPath = repository.storageManager.saveCustomPlaylistCover(customCoverUri, tempId)
+            }
+            repository.createPlaylist(name.trim(), description.trim(), coverPath)
             _userMessage.value = "Lista \"$name\" creada"
+        }
+    }
+
+    fun setPlaylistCustomCover(playlistId: Long, imageUri: Uri) {
+        viewModelScope.launch {
+            val coverPath = repository.storageManager.saveCustomPlaylistCover(imageUri, playlistId)
+            if (coverPath != null) {
+                repository.updatePlaylistCover(playlistId, coverPath)
+                if (_selectedPlaylist.value?.id == playlistId) {
+                    _selectedPlaylist.value = _selectedPlaylist.value?.copy(customCoverPath = coverPath)
+                }
+                _userMessage.value = "Carátula de lista guardada en WebP Lossless"
+            } else {
+                _userMessage.value = "No se pudo procesar la carátula"
+            }
         }
     }
 
@@ -307,6 +350,61 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             repository.removeTrackFromPlaylist(playlistId, trackId)
             _userMessage.value = "Canción removida de la lista"
+        }
+    }
+
+    /**
+     * Sanea y limpia los metadatos de una canción mediante el motor nativo Rust.
+     * Elimina etiquetas basura de ripeo web ([y2mate.com], (320kbps), etc.), repara mojibake
+     * y normaliza el título y artista.
+     */
+    fun sanitizeTrackWithRust(track: TrackEntity) {
+        viewModelScope.launch {
+            val result = repository.sanitizeTrack(track)
+            if (result.wasModified) {
+                if (playbackState.value.currentTrack?.id == track.id && result.updatedTrack != null) {
+                    playbackManager.updateTrackMetadata(result.updatedTrack)
+                }
+                _userMessage.value = "Metadatos saneados con Rust: \"${result.cleanedTitle}\""
+            } else {
+                _userMessage.value = "Los metadatos ya están limpios y optimizados"
+            }
+        }
+    }
+
+    /**
+     * Ejecuta una pasada de análisis y saneamiento con Rust sobre toda la biblioteca.
+     */
+    fun sanitizeAllTracksWithRust() {
+        viewModelScope.launch {
+            val count = repository.sanitizeAllTracks(allTracks.value)
+            if (count > 0) {
+                _userMessage.value = "$count canciones saneadas y limpiadas con el motor Rust"
+            } else {
+                _userMessage.value = "Todos los títulos y artistas de la biblioteca están limpios"
+            }
+        }
+    }
+
+    fun sanitizeTrackMetadata(track: TrackEntity) {
+        sanitizeTrackWithRust(track)
+    }
+
+    fun sanitizeAllTracks() {
+        sanitizeAllTracksWithRust()
+    }
+
+    /**
+     * Fuerza la sincronización y actualización de playlists automáticas por artista (3+ canciones).
+     */
+    fun syncArtistPlaylists() {
+        viewModelScope.launch {
+            val updated = repository.syncArtistPlaylists(allTracks.value)
+            _userMessage.value = if (updated > 0) {
+                "$updated listas de artistas actualizadas automáticamente"
+            } else {
+                "Playlists de artistas al día"
+            }
         }
     }
 

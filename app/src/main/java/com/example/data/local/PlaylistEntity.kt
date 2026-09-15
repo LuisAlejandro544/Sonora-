@@ -1,8 +1,11 @@
 package com.example.data.local
 
+import androidx.room.Embedded
 import androidx.room.Entity
 import androidx.room.Index
+import androidx.room.Junction
 import androidx.room.PrimaryKey
+import androidx.room.Relation
 
 /**
  * Entidad que representa una lista de reproducción personalizada en Sonora.
@@ -13,6 +16,7 @@ data class PlaylistEntity(
     val id: Long = 0,
     val name: String,
     val description: String = "",
+    val customCoverPath: String? = null,
     val createdAt: Long = System.currentTimeMillis()
 )
 
@@ -29,3 +33,23 @@ data class PlaylistTrackCrossRef(
     val trackId: Long,
     val addedAt: Long = System.currentTimeMillis()
 )
+
+/**
+ * Modelo relacional de Room que encapsula una lista de reproducción y todas sus pistas asociadas.
+ */
+data class PlaylistWithTracks(
+    @Embedded
+    val playlist: PlaylistEntity,
+
+    @Relation(
+        parentColumn = "id",
+        entityColumn = "id",
+        associateBy = Junction(
+            value = PlaylistTrackCrossRef::class,
+            parentColumn = "playlistId",
+            entityColumn = "trackId"
+        )
+    )
+    val tracks: List<TrackEntity>
+)
+

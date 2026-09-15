@@ -24,6 +24,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.AutoFixHigh
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.PlayArrow
@@ -100,7 +101,9 @@ fun LibraryScreen(
     onDeleteTrack: (TrackEntity) -> Unit,
     onAddToPlaylist: (Long, Long) -> Unit,
     modifier: Modifier = Modifier,
-    onEditTrack: ((TrackEntity) -> Unit)? = null
+    onEditTrack: ((TrackEntity) -> Unit)? = null,
+    onSanitizeTrack: ((TrackEntity) -> Unit)? = null,
+    onSanitizeAllTracks: (() -> Unit)? = null
 ) {
     val documentPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenMultipleDocuments()
@@ -157,37 +160,74 @@ fun LibraryScreen(
                 color = SonoraTextPrimary
             )
 
-            // Botón táctil semi-3D para importar canciones
-            Box(
-                modifier = Modifier
-                    .shadow(4.dp, RoundedCornerShape(20.dp))
-                    .clip(RoundedCornerShape(20.dp))
-                    .background(
-                        Brush.horizontalGradient(
-                            listOf(SonoraEmerald, SonoraEmeraldBright)
-                        )
-                    )
-                    .clickable { documentPickerLauncher.launch(arrayOf("audio/*")) }
-                    .padding(horizontal = 14.dp, vertical = 8.dp)
-                    .testTag("library_import_btn"),
-                contentAlignment = Alignment.Center
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Default.Add,
-                        contentDescription = "Importar canciones",
-                        tint = Color.Black,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(
-                        text = "Importar",
-                        style = MaterialTheme.typography.labelMedium.copy(
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 13.sp
-                        ),
-                        color = Color.Black
-                    )
+                // Botón táctil semi-3D para limpiar metadatos corruptos con Rust
+                if (onSanitizeAllTracks != null) {
+                    Box(
+                        modifier = Modifier
+                            .shadow(3.dp, RoundedCornerShape(20.dp))
+                            .clip(RoundedCornerShape(20.dp))
+                            .background(SonoraSurfaceElevated)
+                            .clickable { onSanitizeAllTracks() }
+                            .padding(horizontal = 10.dp, vertical = 8.dp)
+                            .testTag("library_rust_clean_btn"),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.AutoFixHigh,
+                                contentDescription = "Limpiar metadatos con Rust",
+                                tint = SonoraEmeraldBright,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "Limpiar Rust",
+                                style = MaterialTheme.typography.labelMedium.copy(
+                                    fontWeight = FontWeight.SemiBold,
+                                    fontSize = 12.sp
+                                ),
+                                color = SonoraEmeraldBright
+                            )
+                        }
+                    }
+                }
+
+                // Botón táctil semi-3D para importar canciones
+                Box(
+                    modifier = Modifier
+                        .shadow(4.dp, RoundedCornerShape(20.dp))
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(
+                            Brush.horizontalGradient(
+                                listOf(SonoraEmerald, SonoraEmeraldBright)
+                            )
+                        )
+                        .clickable { documentPickerLauncher.launch(arrayOf("audio/*")) }
+                        .padding(horizontal = 14.dp, vertical = 8.dp)
+                        .testTag("library_import_btn"),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.Add,
+                            contentDescription = "Importar canciones",
+                            tint = Color.Black,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = "Importar",
+                            style = MaterialTheme.typography.labelMedium.copy(
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 13.sp
+                            ),
+                            color = Color.Black
+                        )
+                    }
                 }
             }
         }
@@ -408,7 +448,8 @@ fun LibraryScreen(
                         onToggleFavorite = { onToggleFavorite(track) },
                         onDelete = { onDeleteTrack(track) },
                         onAddToPlaylist = { trackToAddToPlaylist = track },
-                        onEditMetadata = { onEditTrack?.invoke(track) }
+                        onEditMetadata = { onEditTrack?.invoke(track) },
+                        onSanitizeWithRust = { onSanitizeTrack?.invoke(track) }
                     )
                 }
             }

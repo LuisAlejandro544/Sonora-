@@ -65,6 +65,17 @@ object SonoraRustBridge {
     external fun nativeExtractCoverArt(filePath: String): ByteArray?
 
     /**
+     * Sanea y limpia metadatos de audio en Rust: elimina prefijos/sufijos de ripeo web,
+     * arregla mojibake y normaliza nombres.
+     */
+    external fun nativeSanitizeTrackMetadata(
+        title: String,
+        artist: String,
+        album: String,
+        filePath: String
+    ): String
+
+    /**
      * Modelo de datos para metadatos de audio extraídos por el motor Rust.
      */
     data class NativeMetadataResult(
@@ -73,6 +84,41 @@ object SonoraRustBridge {
         val album: String?,
         val hasCover: Boolean
     )
+
+    /**
+     * Resultado del saneamiento inteligente de metadatos procesado en Rust.
+     */
+    data class CleanedMetadataResult(
+        val title: String,
+        val artist: String,
+        val album: String,
+        val wasModified: Boolean
+    )
+
+    /**
+     * Ejecuta el saneamiento y limpieza de metadatos directamente en el motor Rust.
+     */
+    fun sanitizeMetadataSafe(
+        title: String,
+        artist: String,
+        album: String,
+        filePath: String
+    ): CleanedMetadataResult? {
+        if (!isAvailable()) return null
+        return try {
+            val jsonStr = nativeSanitizeTrackMetadata(title, artist, album, filePath)
+            val json = org.json.JSONObject(jsonStr)
+            CleanedMetadataResult(
+                title = json.optString("title", title),
+                artist = json.optString("artist", artist),
+                album = json.optString("album", album),
+                wasModified = json.optBoolean("wasModified", false)
+            )
+        } catch (e: Throwable) {
+            Log.w(TAG, "Saneamiento de metadatos en Rust delegado o con error: ${e.message}")
+            null
+        }
+    }
 
     /**
      * Ejecuta la extracción de metadatos de audio de forma segura.

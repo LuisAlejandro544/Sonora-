@@ -80,6 +80,7 @@ fun MainScreen(
     val recentlyAdded by viewModel.recentlyAddedTracks.collectAsStateWithLifecycle()
     val mostPlayedTracks by viewModel.mostPlayedTracks.collectAsStateWithLifecycle()
     val playlists by viewModel.allPlaylists.collectAsStateWithLifecycle()
+    val playlistsWithTracks by viewModel.allPlaylistsWithTracks.collectAsStateWithLifecycle()
     val totalStorageBytes by viewModel.totalStorageBytes.collectAsStateWithLifecycle()
     val totalTrackCount by viewModel.totalTrackCount.collectAsStateWithLifecycle()
     val isImporting by viewModel.isImporting.collectAsStateWithLifecycle()
@@ -218,25 +219,38 @@ fun MainScreen(
                         onAddToPlaylist = { playlistId, trackId ->
                             viewModel.addTrackToPlaylist(playlistId, trackId)
                         },
-                        onEditTrack = { viewModel.setTrackToEdit(it) }
+                        onEditTrack = { viewModel.setTrackToEdit(it) },
+                        onSanitizeTrack = { viewModel.sanitizeTrackMetadata(it) },
+                        onSanitizeAllTracks = { viewModel.sanitizeAllTracks() }
                     )
 
                     SonoraNavTab.PLAYLISTS -> PlaylistsScreen(
-                        playlists = playlists,
+                        playlistsWithTracks = playlistsWithTracks,
                         favoriteTracks = favoriteTracks,
+                        allTracks = allTracks,
                         selectedPlaylist = selectedPlaylist,
                         selectedPlaylistTracks = selectedPlaylistTracks,
                         playbackState = playbackState,
                         onSelectPlaylist = { viewModel.selectPlaylist(it) },
-                        onCreatePlaylist = { name, desc -> viewModel.createPlaylist(name, desc) },
+                        onCreatePlaylist = { name, desc, coverUri ->
+                            viewModel.createPlaylist(name, desc, coverUri)
+                        },
                         onDeletePlaylist = { viewModel.deletePlaylist(it) },
                         onPlayTrack = { track, queue -> viewModel.playTrack(track, queue) },
                         onPlayAll = { list, shuffle -> viewModel.playAll(list, shuffle) },
                         onToggleFavorite = { viewModel.toggleFavorite(it) },
+                        onAddTrackToPlaylist = { playlistId, trackId ->
+                            viewModel.addTrackToPlaylist(playlistId, trackId)
+                        },
                         onRemoveFromPlaylist = { playlistId, trackId ->
                             viewModel.removeTrackFromPlaylist(playlistId, trackId)
                         },
-                        onEditTrack = { viewModel.setTrackToEdit(it) }
+                        onSetCustomCover = { playlistId, uri ->
+                            viewModel.setPlaylistCustomCover(playlistId, uri)
+                        },
+                        onEditTrack = { viewModel.setTrackToEdit(it) },
+                        onSanitizeTrack = { viewModel.sanitizeTrackMetadata(it) },
+                        onSyncArtistPlaylists = { viewModel.syncArtistPlaylists() }
                     )
 
                     SonoraNavTab.SETTINGS -> SettingsScreen(

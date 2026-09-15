@@ -14,6 +14,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Album
+import androidx.compose.material.icons.filled.AutoFixHigh
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.EditNote
 import androidx.compose.material.icons.filled.MusicNote
@@ -73,6 +75,8 @@ fun EditMetadataDialog(
     var artist by remember { mutableStateOf(track.artist) }
     var album by remember { mutableStateOf(track.album) }
     var isTitleError by remember { mutableStateOf(false) }
+    var rustCleanMessage by remember { mutableStateOf<String?>(null) }
+    var isRustCleaned by remember { mutableStateOf(false) }
 
     Dialog(
         onDismissRequest = onDismiss,
@@ -162,7 +166,78 @@ fun EditMetadataDialog(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(18.dp))
+                Spacer(modifier = Modifier.height(14.dp))
+
+                // Botón de Saneamiento y Limpieza Inteligente con Rust
+                Button(
+                    onClick = {
+                        val result = com.example.sonora.nativeengine.SonoraRustBridge.sanitizeMetadataSafe(
+                            title = title,
+                            artist = artist,
+                            album = album,
+                            filePath = track.filePath
+                        )
+                        if (result != null) {
+                            title = result.title
+                            artist = result.artist
+                            album = result.album
+                            isTitleError = false
+                            if (result.wasModified) {
+                                isRustCleaned = true
+                                rustCleanMessage = "¡Limpiado con Rust! Se corrigieron caracteres y etiquetas."
+                            } else {
+                                isRustCleaned = false
+                                rustCleanMessage = "Los metadatos ya están limpios y en formato óptimo."
+                            }
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = SonoraSurfaceElevated,
+                        contentColor = SonoraEmeraldBright
+                    ),
+                    border = androidx.compose.foundation.BorderStroke(
+                        1.dp,
+                        if (isRustCleaned) SonoraEmeraldBright else SonoraSurfaceHighlight
+                    ),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(48.dp)
+                        .testTag("rust_clean_metadata_btn")
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        Icon(
+                            imageVector = if (isRustCleaned) Icons.Default.Check else Icons.Default.AutoFixHigh,
+                            contentDescription = null,
+                            tint = SonoraEmeraldBright,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = if (isRustCleaned) "Limpieza completada con Rust" else "Limpiar nombres y metadatos con Rust",
+                            style = MaterialTheme.typography.bodyMedium.copy(
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 13.sp
+                            ),
+                            color = SonoraTextPrimary
+                        )
+                    }
+                }
+
+                if (rustCleanMessage != null) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = rustCleanMessage!!,
+                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
+                        color = if (isRustCleaned) SonoraEmeraldBright else SonoraTextSecondary,
+                        modifier = Modifier.padding(horizontal = 4.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
 
                 // Campo 1: Título de la pista (Nombre de la canción)
                 OutlinedTextField(

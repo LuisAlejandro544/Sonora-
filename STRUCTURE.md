@@ -33,7 +33,9 @@ Este documento detalla la organización del código fuente, los submódulos de c
 │   │       │   │   │   ├── AudioImporter.kt           # Procesa audio, invoca Rust y guarda registros
 │   │       │   │   │   └── ProceduralArtGenerator.kt  # Generador procedural matemático de carátulas (sin IA)
 │   │       │   │   └── repository/       # Patrón Repository para base de datos y archivos
-│   │       │   │       └── MusicRepository.kt
+│   │       │   │       ├── MusicRepository.kt         # Fachada unificada de datos
+│   │       │   │       ├── MetadataSanitizerManager.kt # Orquestador de limpieza nativa con Rust
+│   │       │   │       └── ArtistPlaylistManager.kt   # Generador y sincronizador de playlists por artista (3+ temas)
 │   │       │   ├── player/               # Capa de reproducción de audio y servicio
 │   │       │   │   ├── PlaybackManager.kt         # ExoPlayer + MediaSessionService con Gapless Playback
 │   │       │   │   ├── PlaybackState.kt           # Estados reactivos de reproducción (incluye flag isGaplessEnabled)
@@ -53,6 +55,8 @@ Este documento detalla la organización del código fuente, los submódulos de c
 │   │       │       ├── MainScreen.kt     # Estructura de navegación con barra inferior (Inicio, Biblioteca, Listas, Ajustes)
 │   │       │       ├── components/       # Componentes de interfaz reutilizables
 │   │       │       │   ├── Semi3DCard.kt # Tarjetas con relieve visual y sombras multicapa
+│   │       │       │   ├── PlaylistCoverCollage.kt # Portada dinámica con collage de 1, 2 o máx 3 fotos y WebP
+│   │       │       │   ├── AddSongsToPlaylistDialog.kt # Buscador modal para añadir canciones a listas
 │   │       │       │   ├── MostPlayedSection.kt # Podio de canciones más reproducidas con insignias semi-3D
 │   │       │       │   ├── AudioVisualizer.kt # Visualizador rítmico de ondas
 │   │       │       │   ├── MiniPlayerBar.kt   # Barra persistente de reproducción con favorito animado
@@ -67,13 +71,20 @@ Este documento detalla la organización del código fuente, los submódulos de c
 │   │       │       │   ├── PlaylistsScreen.kt  # Creación y administración de listas
 │   │       │       │   ├── EqualizerScreen.kt  # Ecualizador gráfico de 10 bandas (integrado en el reproductor)
 │   │       │       │   ├── VocalLabScreen.kt   # Laboratorio Vocal C++ (velocidad de voz, Anti-Ardilla y formantes)
-│   │       │       │   └── SettingsScreen.kt   # Ajustes (Gapless, tipografía propia), diagnósticos y benchmark nativo
+│   │       │       │   ├── SettingsScreen.kt   # Menú maestro modular de Ajustes (orquestador de subpantallas)
+│   │       │       │   └── settings/           # Sub-pantallas modulares desacopladas de configuración
+│   │       │       │       ├── SettingsAudioScreen.kt   # Gapless, Media3, notificación nativa y formatos
+│   │       │       │       ├── SettingsNativeScreen.kt  # Estado C++/Rust, arquitectura 32/64b y benchmark
+│   │       │       │       ├── SettingsUiScreen.kt      # Aislamiento tipográfico (1.0x) y ergonomía táctil
+│   │       │       │       ├── SettingsStorageScreen.kt # Estadísticas de disco, demo y 4 carpetas
+│   │       │       │       └── SettingsAboutScreen.kt   # Privacidad SAF, tiendas libres (Uptodown) y versión
 │   │       │       └── theme/            # Sistema de diseño, paleta, tipografías M3 y aislamiento de fontScale (1.0f)
 │   │       └── res/                      # Recursos Android (strings, vectores, iconos)
 ├── rust_core/                            # Subproyecto nativo independiente en Rust
 │   ├── Cargo.toml                        # Configuración del crate 'sonora_rust'
 │   └── src/
-│       └── lib.rs                        # FFT, dBFS, Hash FNV-1a y extractor de metadatos/carátula
+│       ├── lib.rs                        # JNI bindings (FFT, dBFS, Hash FNV-1a, Extractor y Sanitizer)
+│       └── cleaner.rs                    # Motor de limpieza de metadatos corruptos (URLs, calidad, índices)
 ├── gradle/                               # Configuración y versión de dependencias
 ├── limpiar_archivos_nativos.sh           # Script Shell para purgar directorios temporales target/.cxx
 ├── limpiar_archivos_nativos.py           # Script Python para purga forzada y eliminación de basura
@@ -92,11 +103,17 @@ Este documento detalla la organización del código fuente, los submódulos de c
 ### 1. Capa de Presentación (`app/src/main/java/com/example/ui`)
 - **Jetpack Compose Puro**: Sin fragmentos XML legacy.
 - **Enfoque Semi-3D**: A diferencia de las interfaces planas minimalistas convencionales, Sonora implementa `Semi3DCard` y componentes con degradados dinámicos, sombreados con elevación tangible y realce de bordes luminosos.
-- **Pantallas Desacopladas**: Cada pantalla principal (`HomeScreen`, `LibraryScreen`, `PlaylistsScreen`, `SettingsScreen`) y el reproductor con ecualizador integrado (`FullScreenPlayer` + `EqualizerScreen`) son componentes autónomos con su propio flujo de interacción, optimizando la ergonomía en pantallas móviles.
+- **Pantallas Desacopladas y Ajustes Modulares**: Cada pantalla principal (`HomeScreen`, `LibraryScreen`, `PlaylistsScreen`, `SettingsScreen`) y el reproductor con ecualizador integrado (`FullScreenPlayer` + `EqualizerScreen`) son componentes autónomos. La sección de **Ajustes** está estructurada en subpantallas independientes (`settings/`) con navegación animada, botón de regreso ergonómico de 48dp y soporte para el `BackHandler` del sistema Android, evitando vistas abarrotadas.
 
 ### 2. Capa de Reproducción (`app/src/main/java/com/example/player`)
 - **AndroidX Media3**: Utiliza la API moderna de medios para garantizar compatibilidad con Android 8.0 (API 26) hasta Android 16.
-- **`SonoraAudioService`**: Servicio `MediaSessionService` que mantiene la reproducción activa en segundo plano con control mediante notificación interactiva (Play, Pause, Skip, barra de progreso).
+- **`SonoraMediaService` (`MediaSessionService`)**: Servicio de primer plano que mantiene activa la reproducción de audio al salir de la aplicación, minimizar la pantalla o apagar el dispositivo móvil.
+- **Notificación Nativa Interactiva**: Publica la notificación multimedia nativa del sistema a través de `DefaultMediaNotificationProvider` con canal de baja latencia (`CHANNEL_ID` con prioridad `IMPORTANCE_LOW` y `VISIBILITY_PUBLIC`). Muestra en tiempo real:
+  - Carátula de la pista en alta definición (desde WebP Lossless o carátula procedural matemática).
+  - Título de la pista y artista en tiempo real.
+  - Controles de transporte integrados: Anterior, Play/Pausa y Siguiente.
+  - Barra de búsqueda de posición temporal (*scrubber*) y compatibilidad con el reproductor nativo en la pantalla de bloqueo de Android 13+.
+  - Liberación inteligente del servicio al pausar si se elimina la tarea de aplicaciones recientes, ahorrando batería en el teléfono.
 
 ### 3. Capa de Datos (`app/src/main/java/com/example/data`)
 - **Android Room**: Base de datos SQLite reactiva con soporte para Corrutinas y Flow.

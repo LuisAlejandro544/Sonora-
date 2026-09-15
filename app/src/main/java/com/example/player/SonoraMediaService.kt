@@ -38,10 +38,11 @@ class SonoraMediaService : MediaSessionService() {
         // Configuración del proveedor de notificación nativa de Media3
         val notificationProvider = DefaultMediaNotificationProvider.Builder(applicationContext)
             .setChannelId(CHANNEL_ID)
-            .setChannelNameResourceId(R.string.playback_notification_channel_name)
-            .setSmallIcon(R.drawable.ic_notification_music)
+            .setChannelName(R.string.playback_notification_channel_name)
             .setNotificationId(NOTIFICATION_ID)
-            .build()
+            .build().apply {
+                setSmallIcon(R.drawable.ic_notification_music)
+            }
 
         setMediaNotificationProvider(notificationProvider)
     }

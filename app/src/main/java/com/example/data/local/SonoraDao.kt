@@ -5,6 +5,7 @@ import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Transaction
 import androidx.room.Update
 import kotlinx.coroutines.flow.Flow
 
@@ -58,11 +59,27 @@ interface SonoraDao {
     @Query("SELECT * FROM playlists ORDER BY createdAt DESC")
     fun getAllPlaylists(): Flow<List<PlaylistEntity>>
 
+    @Transaction
+    @Query("SELECT * FROM playlists ORDER BY createdAt DESC")
+    fun getPlaylistsWithTracks(): Flow<List<PlaylistWithTracks>>
+
+    @Query("SELECT * FROM playlists WHERE id = :id")
+    suspend fun getPlaylistById(id: Long): PlaylistEntity?
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertPlaylist(playlist: PlaylistEntity): Long
 
+    @Update
+    suspend fun updatePlaylist(playlist: PlaylistEntity)
+
+    @Query("UPDATE playlists SET customCoverPath = :coverPath WHERE id = :playlistId")
+    suspend fun updatePlaylistCover(playlistId: Long, coverPath: String)
+
     @Query("DELETE FROM playlists WHERE id = :playlistId")
     suspend fun deletePlaylist(playlistId: Long)
+
+    @Query("DELETE FROM playlist_tracks WHERE playlistId = :playlistId")
+    suspend fun deletePlaylistTracks(playlistId: Long)
 
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun addTrackToPlaylist(crossRef: PlaylistTrackCrossRef)
@@ -78,8 +95,23 @@ interface SonoraDao {
     """)
     fun getTracksForPlaylist(playlistId: Long): Flow<List<TrackEntity>>
 
+    @Query("""
+        SELECT tracks.albumArtPath FROM tracks 
+        INNER JOIN playlist_tracks ON tracks.id = playlist_tracks.trackId 
+        WHERE playlist_tracks.playlistId = :playlistId AND tracks.albumArtPath IS NOT NULL
+        ORDER BY playlist_tracks.addedAt ASC 
+        LIMIT 3
+    """)
+    fun getTopTrackArtPathsForPlaylist(playlistId: Long): Flow<List<String>>
+
     @Query("SELECT COUNT(*) FROM playlist_tracks WHERE playlistId = :playlistId")
     fun getTrackCountForPlaylist(playlistId: Long): Flow<Int>
+
+    @Query("SELECT trackId FROM playlist_tracks WHERE playlistId = :playlistId")
+    suspend fun getTrackIdsForPlaylist(playlistId: Long): List<Long>
+
+    @Query("SELECT * FROM playlists WHERE LOWER(TRIM(name)) = LOWER(TRIM(:name)) LIMIT 1")
+    suspend fun getPlaylistByName(name: String): PlaylistEntity?
 
     @Query("SELECT COUNT(*) FROM tracks")
     fun getTotalTrackCount(): Flow<Int>

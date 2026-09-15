@@ -80,6 +80,56 @@ object WebpLosslessCompressor {
     }
 
     /**
+     * Comprime un objeto Bitmap directamente a formato WebP Lossless con máxima fidelidad (calidad 100).
+     */
+    fun compressBitmapToWebpLossless(bitmap: Bitmap, destinationFile: File): Boolean {
+        return try {
+            destinationFile.parentFile?.let {
+                if (!it.exists()) it.mkdirs()
+            }
+            FileOutputStream(destinationFile).use { outputStream ->
+                val format = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                    Bitmap.CompressFormat.WEBP_LOSSLESS
+                } else {
+                    @Suppress("DEPRECATION")
+                    Bitmap.CompressFormat.WEBP
+                }
+                val success = bitmap.compress(format, 100, outputStream)
+                outputStream.flush()
+                if (success) {
+                    Log.d(TAG, "Bitmap comprimido a WebP Lossless exitosamente en: ${destinationFile.name} (${destinationFile.length()} bytes)")
+                }
+                success
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error al comprimir Bitmap a WebP Lossless: ${e.message}", e)
+            false
+        }
+    }
+
+    /**
+     * Decodifica un flujo de entrada (InputStream) y lo comprime directamente a WebP Lossless.
+     */
+    fun compressStreamToWebpLossless(inputStream: java.io.InputStream, destinationFile: File): Boolean {
+        return try {
+            val options = BitmapFactory.Options().apply {
+                inPreferredConfig = Bitmap.Config.ARGB_8888
+                inPremultiplied = false
+            }
+            val bitmap = BitmapFactory.decodeStream(inputStream, null, options) ?: run {
+                Log.e(TAG, "No se pudo decodificar el stream de imagen.")
+                return false
+            }
+            val success = compressBitmapToWebpLossless(bitmap, destinationFile)
+            bitmap.recycle()
+            success
+        } catch (e: Exception) {
+            Log.e(TAG, "Error al procesar stream a WebP Lossless: ${e.message}", e)
+            false
+        }
+    }
+
+    /**
      * Comprime un array de bytes y retorna directamente los bytes del WebP resultante en memoria.
      */
     fun compressToWebpBytes(imageBytes: ByteArray): ByteArray? {

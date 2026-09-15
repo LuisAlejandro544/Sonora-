@@ -9,7 +9,12 @@ Este documento describe la visión de desarrollo y la evolución técnica de **S
 - [x] **Arquitectura Base y Modularidad**:
   - Implementación con Jetpack Compose y diseño semi-3D de alta densidad visual.
   - Separación estricta de responsabilidades: navegación desacoplada, capa de datos Room y servicio de reproducción Media3.
-  - Soporte de ciclo de vida completo y servicio de reproducción persistente en segundo plano (`MediaSessionService`).
+  - **Arquitectura de Ajustes Modular por Pantallas Desacopladas**:
+    - División de la pantalla de Ajustes en subpantallas independientes (`Audio y Reproducción`, `Aceleración Nativa`, `Interfaz y Ergonomía`, `Almacenamiento Local`, `Privacidad y Acerca de`).
+    - Navegación animada horizontal, botón superior ergonómico de 48dp y soporte para `BackHandler` del teléfono móvil.
+  - **Notificación Nativa Interactiva y Reproducción en Segundo Plano (`SonoraMediaService`)**:
+    - Servicio de primer plano `MediaSessionService` con canal de baja latencia (`IMPORTANCE_LOW` y `VISIBILITY_PUBLIC`).
+    - Controles interactivos completos de reproducción (Play, Pause, Anterior, Siguiente), barra de búsqueda temporal (*scrubber*), metadatos dinámicos y soporte completo para carátulas HD en pantalla de bloqueo.
 - [x] **Integración de Motores Nativos (C++ y Rust)**:
   - Compilación cruzada para arquitecturas de 32 bits (`armeabi-v7a`, `x86`) y 64 bits (`arm64-v8a`, `x86_64`).
   - Motor C++ con filtros IIR Biquad y limitador Soft-Clipping (`tanh`).
@@ -72,6 +77,21 @@ Este documento describe la visión de desarrollo y la evolución técnica de **S
 - [x] **Sección Dinámica de Alta Rotación ("Más escuchadas")**:
   - Seguimiento y persistencia reactiva del contador de reproducciones (`playCount`) en Room SQLite.
   - Podio semi-3D visual con insignias de posición metálicas (#1 oro, #2 cian/plata, #3 bronce), contador de reproducciones e inicio directo de cola en alta rotación.
+- [x] **Listas de Reproducción Personalizadas y Favoritos Estilo Spotify**:
+  - Creación dinámica de listas con nombre, descripción y selección de carátula personalizada.
+  - Buscador modal interactivo (`AddSongsToPlaylistDialog`) para incorporar cualquier canción de la biblioteca a la lista seleccionada.
+  - **Collage Dinámico de Portadas (1, 2 o máximo 3 fotos)**: Muestra 1 carátula si la lista tiene 1 canción, 2 en división horizontal si tiene 2, y composición de 3 fotos si tiene 3 o más pistas (sin saturar con más imágenes si hay más temas).
+  - **Compresión WebP Lossless para Carátulas de Listas**: Conversión y almacenamiento local a máxima compresión sin pérdida para imágenes elegidas desde la galería.
+  - **Lista Automática de Favoritos**: Al pulsar el botón de corazón en cualquier pantalla, la canción se agrega de forma atómica a la lista especial de Canciones Favoritas.
+  - **Fondo Sólido Opaco en el Reproductor**: Eliminación del degradado ambiental translúcido para garantizar que no se transparenten vistas anteriores, manteniendo el diseño semi-3D con total contraste.
+- [x] **Limpieza y Sanitización Nativa de Metadatos con Rust**:
+  - Algoritmo en Rust (`cleaner.rs`) de alta velocidad para limpiar nombres corruptos, sufijos web (`y2mate`, `mp3clan`, etc.), tags de calidad (`[320kbps]`, `[Official Video]`, `(Lyrics)`) y prefijos de pista numéricos (`01 - `).
+  - Activación con un solo toque ("Limpiar con Rust") desde el editor de metadatos, menú de pista en la biblioteca y cabecera de la biblioteca para procesamiento masivo.
+  - Sincronización inmediata con Room SQLite, archivos de metadatos y registros `.json`.
+- [x] **Generación Automática de Playlists por Artista (Detección de 3+ Canciones)**:
+  - Creación automática de listas de reproducción dedicadas al detectar 3 o más canciones de un mismo artista en la biblioteca (`Colección automática de [Artista]`).
+  - Sincronización continua: las canciones nuevas que se importen o limpien y pertenezcan a ese artista se incorporan de forma reactiva sin duplicarse.
+  - Insignia distintiva visual `Artista` en el catálogo de playlists y botón ergonómico de sincronización rápida.
 - [ ] **Listas de Reproducción Inteligentes Adicionales**:
   - Generación de listas dinámicas avanzadas ("Favoritas del mes", "Historial semanal", "Baja rotación / Redescubrir").
 - [x] **Editor de Metadatos Integrado y Favoritos Reactivos**:

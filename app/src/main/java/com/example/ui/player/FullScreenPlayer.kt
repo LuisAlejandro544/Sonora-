@@ -180,10 +180,10 @@ fun FullScreenPlayer(
             playbackState.currentPositionMs
         }
 
-        // Fondo con sutil gradiente ambiental que desciende desde verde carbón profundo a negro puro
+        // Fondo completamente opaco y sólido para evitar que la pantalla anterior se transparente
         val backgroundGradient = Brush.verticalGradient(
             colors = listOf(
-                SonoraEmeraldDark.copy(alpha = 0.45f),
+                SonoraEmeraldDark,
                 SonoraBackground,
                 SonoraBackground
             )
@@ -194,7 +194,7 @@ fun FullScreenPlayer(
                 .fillMaxSize()
                 .background(backgroundGradient)
                 .testTag("full_screen_player_view"),
-            color = Color.Transparent
+            color = SonoraBackground
         ) {
             AnimatedContent(
                 targetState = currentSubView,

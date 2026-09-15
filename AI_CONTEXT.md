@@ -24,7 +24,8 @@ Este documento proporciona contexto técnico, restricciones operativas y lineami
    - Al usuario **no le gusta el minimalismo plano o ultra-simplista**. La interfaz debe contar con riqueza visual, profundidad, efectos semi-3D, degradados elegantes, sombras volumétricas y retroalimentación táctil clara.
 2. **Modularidad de Pantallas y Componentes**:
    - Está terminantemente prohibido amontonar todas las funcionalidades en una sola pantalla única atestada.
-   - Cada sección principal debe contar con su propia pantalla dedicada (`NowPlaying`, `Library`, `Playlists`, `Equalizer`, `Settings`), conectadas mediante una barra de navegación inferior intuitiva y fluida.
+   - La barra de navegación inferior aloja 4 destinos ergonómicos principales (`Inicio`, `Biblioteca`, `Playlists` y `Ajustes`).
+   - El *Ecualizador Gráfico DSP de 10 bandas* (`EqualizerScreen`) está integrado directamente dentro del reproductor a pantalla completa (`FullScreenPlayer`) mediante un botón de acceso directo con transición animada y botón de retorno, evitando saturar la barra de navegación del móvil.
    - Componentes de alta densidad informativa (como `MostPlayedSection` con podio de alta rotación y contadores de reproducción) deben modularizarse en submódulos en `com.example.ui.components` manteniendo cada archivo por debajo de 500 líneas.
 3. **Aislamiento Tipográfico Propio (fontScale = 1.0f)**:
    - Para evitar que los ajustes de accesibilidad o escala de fuente que el usuario tenga configurados globalmente en su teléfono colapsen la diagramación de la app, Sonora tiene su propio tamaño de letra calibrado.
@@ -67,10 +68,15 @@ Para garantizar máxima velocidad, organización y preservación de memoria:
 ## 🎵 Arquitectura de DSP, ExoPlayer y Estado Reactivo
 
 1. **Cadena de Procesamiento de Audio ExoPlayer**:
-   - `Sonora10BandAudioProcessor` implementa la interfaz `AudioProcessor` de Media3 y procesa directamente los buffers PCM de 16 bits en coma flotante mediante el puente JNI nativo en C++.
+   - `Sonora10BandAudioProcessor` implementa la interfaz `AudioProcessor` de Media3 y procesa directamente los buffers PCM de 16 bits en coma flotante mediante el puente JNI nativo en C++ (`libsonora_dsp.so`).
    - El ecualizador cuenta con 10 bandas de frecuencia ISO, preamplificador y filtro no lineal *Soft-Clipping* (`tanh`).
-   - Los cambios de ganancia se aplican en caliente sin interrupciones ni chasquidos en la reproducción.
-2. **Edición de Metadatos Sincronizada**:
+   - `SonoraVocalAudioProcessor` añade el **Laboratorio Vocal C++** (`sonora_vocal.cpp`) a la cadena de audio de ExoPlayer: time-scale modification para acelerar o decelerar la voz del cantante (0.50x a 2.00x) sin alterar la velocidad ni el tempo instrumental de la canción, con filtro Anti-Ardilla de preservación de formantes acústicos y aislamiento estéreo M/S.
+   - Los cambios de ganancia, EQ y velocidad vocal se aplican en caliente sin interrupciones ni chasquidos en la reproducción.
+2. **Generador de Carátulas Procedurales Matemáticas (Sin IA)**:
+   - `ProceduralArtGenerator` crea carátulas bitmap procedurales de altísima calidad visual para canciones que no tienen imagen incrustada.
+   - Basado en un hash numérico determinista del título y artista: genera gradientes poligonales envolventes, patrones de ondas rítmicas de audio y micro-surcos concéntricos de disco de vinilo.
+   - Es 100% offline, opera en menos de 10 milisegundos, no consume datos móviles, no depende de servicios o modelos de IA pesados y se almacena en WebP Lossless.
+3. **Edición de Metadatos Sincronizada**:
    - Al editar el título, artista o álbum de una canción, la actualización se refleja de inmediato en Room, en el fichero de texto en `metadatos/` y en el fichero de metadatos de respaldo en `registros_json/`.
    - Si la pista editada se encuentra en reproducción activa o en la cola, `PlaybackManager` y `MusicViewModel` actualizan el objeto en memoria de forma reactiva sin requerir reinicio del reproductor.
 3. **Sistema de Favoritos Instantáneo**:

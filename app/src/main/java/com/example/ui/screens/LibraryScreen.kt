@@ -54,6 +54,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.local.PlaylistEntity
@@ -319,6 +320,7 @@ fun LibraryScreen(
                     onClick = { onPlayAll(displayedTracks, false) },
                     colors = ButtonDefaults.buttonColors(containerColor = SonoraEmerald),
                     shape = RoundedCornerShape(12.dp),
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
                     modifier = Modifier
                         .weight(1f)
                         .testTag("library_play_all_btn")
@@ -327,13 +329,16 @@ fun LibraryScreen(
                         imageVector = Icons.Default.PlayArrow,
                         contentDescription = null,
                         tint = Color.Black,
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(18.dp)
                     )
-                    Spacer(modifier = Modifier.width(6.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
                     Text(
-                        text = "Reproducir (${displayedTracks.size})",
+                        text = "Reproducir",
                         color = Color.Black,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 13.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
 
@@ -341,6 +346,7 @@ fun LibraryScreen(
                     onClick = { onPlayAll(displayedTracks, true) },
                     colors = ButtonDefaults.buttonColors(containerColor = SonoraSurfaceElevated),
                     shape = RoundedCornerShape(12.dp),
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
                     modifier = Modifier
                         .weight(1f)
                         .testTag("library_shuffle_btn")
@@ -351,11 +357,14 @@ fun LibraryScreen(
                         tint = SonoraEmeraldBright,
                         modifier = Modifier.size(18.dp)
                     )
-                    Spacer(modifier = Modifier.width(6.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
                     Text(
                         text = "Aleatorio",
                         color = SonoraTextPrimary,
-                        fontWeight = FontWeight.SemiBold
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 13.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
             }

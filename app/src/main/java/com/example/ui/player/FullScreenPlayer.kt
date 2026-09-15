@@ -1,5 +1,7 @@
 package com.example.ui.player
 
+import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
@@ -77,6 +79,11 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.material.icons.filled.RecordVoiceOver
+import com.example.player.equalizer.EqualizerPreset
+import com.example.player.equalizer.EqualizerState
+import com.example.player.vocal.VocalEngineState
+import com.example.player.vocal.VocalPreset
 import com.example.player.PlaybackState
 import com.example.player.SonoraRepeatMode
 import com.example.ui.components.AudioVisualizerBars
@@ -84,6 +91,8 @@ import com.example.ui.components.Semi3DCard
 import com.example.ui.components.SonoraAlbumArt
 import com.example.ui.components.formatDuration
 import com.example.ui.components.formatFileSize
+import com.example.ui.screens.EqualizerScreen
+import com.example.ui.screens.VocalLabScreen
 import com.example.ui.theme.SonoraBackground
 import com.example.ui.theme.SonoraEmerald
 import com.example.ui.theme.SonoraEmeraldBright
@@ -96,17 +105,43 @@ import com.example.ui.theme.SonoraSurfaceHighlight
 import com.example.ui.theme.SonoraTextMuted
 import com.example.ui.theme.SonoraTextPrimary
 import com.example.ui.theme.SonoraTextSecondary
+import com.example.ui.theme.SonoraCyanBright
+
+/**
+ * Subvistas modulares dentro del reproductor a pantalla completa.
+ */
+enum class FullScreenPlayerSubView {
+    MAIN,
+    EQUALIZER,
+    VOCAL_LAB
+}
 
 /**
  * Pantalla completa del reproductor de música Sonora.
  * Inspirada en la interfaz inmersiva de streaming, con control táctil semi-3D,
- * scrubber interactivo, ecualizador en vivo, selector de velocidad y carátula grande sin rotación.
+ * scrubber interactivo, ecualizador en vivo, laboratorio vocal C++ y carátula grande sin rotación.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FullScreenPlayer(
     isOpen: Boolean,
     playbackState: PlaybackState,
+    equalizerState: EqualizerState,
+    vocalState: VocalEngineState,
+    onToggleEqualizerEnabled: (Boolean) -> Unit,
+    onBandGainChanged: (Int, Float) -> Unit,
+    onPresetSelected: (EqualizerPreset) -> Unit,
+    onPreampChanged: (Float) -> Unit,
+    onBassBoostChanged: (Float) -> Unit,
+    onToggleSoftClip: (Boolean) -> Unit,
+    onResetEqualizer: () -> Unit,
+    onToggleVocalEnabled: (Boolean) -> Unit,
+    onVocalSpeedChanged: (Float) -> Unit,
+    onToggleVocalFormantCorrection: (Boolean) -> Unit,
+    onVocalIsolationChanged: (Float) -> Unit,
+    onVocalGainDbChanged: (Float) -> Unit,
+    onVocalPresetSelected: (VocalPreset) -> Unit,
+    onResetVocalDefault: () -> Unit,
     onClose: () -> Unit,
     onTogglePlayPause: () -> Unit,
     onPlayNext: () -> Unit,
@@ -116,7 +151,6 @@ fun FullScreenPlayer(
     onCycleRepeatMode: () -> Unit,
     onSetPlaybackSpeed: (Float) -> Unit,
     onToggleFavorite: () -> Unit,
-    onOpenEqualizer: (() -> Unit)? = null,
     onEditMetadata: (() -> Unit)? = null
 ) {
     val track = playbackState.currentTrack
@@ -128,10 +162,17 @@ fun FullScreenPlayer(
     ) {
         if (track == null) return@AnimatedVisibility
 
+        var currentSubView by remember { mutableStateOf(FullScreenPlayerSubView.MAIN) }
         var isDraggingSlider by remember { mutableStateOf(false) }
         var sliderPosition by remember { mutableFloatStateOf(0f) }
         var showSpeedDialog by remember { mutableStateOf(false) }
         var showInfoDialog by remember { mutableStateOf(false) }
+
+        // Manejo del botón Atrás del sistema: si un sub-panel está abierto dentro del reproductor,
+        // regresa a los controles del reproductor en vez de cerrar el reproductor completo
+        BackHandler(enabled = isOpen && currentSubView != FullScreenPlayerSubView.MAIN) {
+            currentSubView = FullScreenPlayerSubView.MAIN
+        }
 
         val currentPosition = if (isDraggingSlider) {
             (sliderPosition * track.durationMs).toLong()
@@ -155,106 +196,291 @@ fun FullScreenPlayer(
                 .testTag("full_screen_player_view"),
             color = Color.Transparent
         ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .statusBarsPadding()
-                    .navigationBarsPadding()
-                    .padding(horizontal = 24.dp)
-                    .verticalScroll(rememberScrollState()),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.SpaceBetween
-            ) {
-                // Barra superior: Cerrar y Título del contexto
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 8.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    IconButton(
-                        onClick = onClose,
-                        modifier = Modifier
-                            .size(48.dp)
-                            .testTag("close_player_btn")
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.KeyboardArrowDown,
-                            contentDescription = "Minimizar reproductor",
-                            tint = SonoraTextPrimary,
-                            modifier = Modifier.size(32.dp)
-                        )
-                    }
-
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(
-                            text = "REPRODUCIENDO LOCAL",
-                            style = MaterialTheme.typography.labelSmall.copy(
-                                letterSpacing = 1.8.sp,
-                                fontWeight = FontWeight.Bold
-                            ),
-                            color = SonoraTextSecondary
-                        )
-                        Text(
-                            text = track.album,
-                            style = MaterialTheme.typography.bodySmall.copy(
-                                fontWeight = FontWeight.Medium
-                            ),
-                            color = SonoraEmeraldBright,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
-
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        if (onOpenEqualizer != null) {
-                            IconButton(
-                                onClick = onOpenEqualizer,
-                                modifier = Modifier
-                                    .size(48.dp)
-                                    .testTag("player_equalizer_btn")
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.GraphicEq,
-                                    contentDescription = "Abrir ecualizador DSP",
-                                    tint = SonoraEmeraldBright,
-                                    modifier = Modifier.size(24.dp)
-                                )
-                            }
-                        }
-
-                        if (onEditMetadata != null) {
-                            IconButton(
-                                onClick = onEditMetadata,
-                                modifier = Modifier
-                                    .size(48.dp)
-                                    .testTag("player_edit_metadata_btn")
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Edit,
-                                    contentDescription = "Editar metadatos",
-                                    tint = SonoraEmeraldBright,
-                                    modifier = Modifier.size(22.dp)
-                                )
-                            }
-                        }
-
-                        IconButton(
-                            onClick = { showInfoDialog = true },
+            AnimatedContent(
+                targetState = currentSubView,
+                label = "player_subview_transition"
+            ) { subView ->
+                when (subView) {
+                    FullScreenPlayerSubView.EQUALIZER -> {
+                        // Vista interactiva del Ecualizador DSP dentro del reproductor
+                        Column(
                             modifier = Modifier
-                                .size(48.dp)
-                                .testTag("player_info_btn")
+                                .fillMaxSize()
+                                .statusBarsPadding()
+                                .navigationBarsPadding()
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.Info,
-                                contentDescription = "Información del audio",
-                                tint = SonoraTextSecondary,
-                                modifier = Modifier.size(24.dp)
-                            )
+                            Box(modifier = Modifier.weight(1f)) {
+                                EqualizerScreen(
+                                    equalizerState = equalizerState,
+                                    onToggleEnabled = onToggleEqualizerEnabled,
+                                    onBandGainChanged = onBandGainChanged,
+                                    onPresetSelected = onPresetSelected,
+                                    onPreampChanged = onPreampChanged,
+                                    onBassBoostChanged = onBassBoostChanged,
+                                    onToggleSoftClip = onToggleSoftClip,
+                                    onReset = onResetEqualizer,
+                                    onBack = { currentSubView = FullScreenPlayerSubView.MAIN }
+                                )
+                            }
+
+                            // Barra inferior persistente de reproducción para escuchar cambios en vivo sin salir
+                            Surface(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                                shape = RoundedCornerShape(16.dp),
+                                color = SonoraSurfaceElevated,
+                                shadowElevation = 8.dp
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    SonoraAlbumArt(
+                                        albumArtPath = track.albumArtPath,
+                                        modifier = Modifier.size(44.dp),
+                                        cornerRadius = 8.dp
+                                    )
+                                    Spacer(modifier = Modifier.width(10.dp))
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = track.title,
+                                            style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                                            color = SonoraTextPrimary,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                        Text(
+                                            text = track.artist,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = SonoraTextSecondary,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                    }
+                                    IconButton(
+                                        onClick = onTogglePlayPause,
+                                        modifier = Modifier
+                                            .size(48.dp)
+                                            .testTag("eq_play_pause_btn")
+                                    ) {
+                                        Icon(
+                                            imageVector = if (playbackState.isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
+                                            contentDescription = if (playbackState.isPlaying) "Pausar" else "Reproducir",
+                                            tint = SonoraEmeraldBright,
+                                            modifier = Modifier.size(28.dp)
+                                        )
+                                    }
+                                    IconButton(
+                                        onClick = onPlayNext,
+                                        modifier = Modifier
+                                            .size(48.dp)
+                                            .testTag("eq_next_btn")
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Filled.SkipNext,
+                                            contentDescription = "Siguiente",
+                                            tint = SonoraTextPrimary,
+                                            modifier = Modifier.size(26.dp)
+                                        )
+                                    }
+                                }
+                            }
                         }
                     }
-                }
+
+                    FullScreenPlayerSubView.VOCAL_LAB -> {
+                        // Vista interactiva del Laboratorio Vocal C++ dentro del reproductor
+                        Column(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .statusBarsPadding()
+                                .navigationBarsPadding()
+                        ) {
+                            Box(modifier = Modifier.weight(1f)) {
+                                VocalLabScreen(
+                                    vocalState = vocalState,
+                                    onToggleEnabled = onToggleVocalEnabled,
+                                    onSpeedChanged = onVocalSpeedChanged,
+                                    onToggleFormantCorrection = onToggleVocalFormantCorrection,
+                                    onIsolationChanged = onVocalIsolationChanged,
+                                    onGainDbChanged = onVocalGainDbChanged,
+                                    onPresetSelected = onVocalPresetSelected,
+                                    onResetDefault = onResetVocalDefault,
+                                    onClose = { currentSubView = FullScreenPlayerSubView.MAIN }
+                                )
+                            }
+
+                            // Barra inferior persistente de reproducción para escuchar cambios en vivo sin salir
+                            Surface(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                                shape = RoundedCornerShape(16.dp),
+                                color = SonoraSurfaceElevated,
+                                shadowElevation = 8.dp
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    SonoraAlbumArt(
+                                        albumArtPath = track.albumArtPath,
+                                        modifier = Modifier.size(44.dp),
+                                        cornerRadius = 8.dp
+                                    )
+                                    Spacer(modifier = Modifier.width(10.dp))
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = track.title,
+                                            style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                                            color = SonoraTextPrimary,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                        Text(
+                                            text = track.artist,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = SonoraTextSecondary,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                    }
+                                    IconButton(
+                                        onClick = onTogglePlayPause,
+                                        modifier = Modifier
+                                            .size(48.dp)
+                                            .testTag("vocal_lab_play_pause_btn")
+                                    ) {
+                                        Icon(
+                                            imageVector = if (playbackState.isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
+                                            contentDescription = if (playbackState.isPlaying) "Pausar" else "Reproducir",
+                                            tint = SonoraEmeraldBright,
+                                            modifier = Modifier.size(28.dp)
+                                        )
+                                    }
+                                    IconButton(
+                                        onClick = onPlayNext,
+                                        modifier = Modifier
+                                            .size(48.dp)
+                                            .testTag("vocal_lab_next_btn")
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Filled.SkipNext,
+                                            contentDescription = "Siguiente",
+                                            tint = SonoraTextPrimary,
+                                            modifier = Modifier.size(26.dp)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    FullScreenPlayerSubView.MAIN -> {
+                        // Vista principal del reproductor (carátula, scrubber, controles y chips rápidos)
+                        Column(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .statusBarsPadding()
+                                .navigationBarsPadding()
+                                .padding(horizontal = 24.dp)
+                                .verticalScroll(rememberScrollState()),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.SpaceBetween
+                        ) {
+                        // Barra superior: Cerrar y Título del contexto
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 8.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            IconButton(
+                                onClick = onClose,
+                                modifier = Modifier
+                                    .size(48.dp)
+                                    .testTag("close_player_btn")
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.KeyboardArrowDown,
+                                    contentDescription = "Minimizar reproductor",
+                                    tint = SonoraTextPrimary,
+                                    modifier = Modifier.size(32.dp)
+                                )
+                            }
+
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text(
+                                    text = "REPRODUCIENDO LOCAL",
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        letterSpacing = 1.8.sp,
+                                        fontWeight = FontWeight.Bold
+                                    ),
+                                    color = SonoraTextSecondary
+                                )
+                                Text(
+                                    text = track.album,
+                                    style = MaterialTheme.typography.bodySmall.copy(
+                                        fontWeight = FontWeight.Medium
+                                    ),
+                                    color = SonoraEmeraldBright,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                IconButton(
+                                    onClick = { currentSubView = FullScreenPlayerSubView.EQUALIZER },
+                                    modifier = Modifier
+                                        .size(48.dp)
+                                        .testTag("player_equalizer_btn")
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.GraphicEq,
+                                        contentDescription = "Abrir ecualizador DSP",
+                                        tint = SonoraEmeraldBright,
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                }
+
+                                if (onEditMetadata != null) {
+                                    IconButton(
+                                        onClick = onEditMetadata,
+                                        modifier = Modifier
+                                            .size(48.dp)
+                                            .testTag("player_edit_metadata_btn")
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Edit,
+                                            contentDescription = "Editar metadatos",
+                                            tint = SonoraEmeraldBright,
+                                            modifier = Modifier.size(22.dp)
+                                        )
+                                    }
+                                }
+
+                                IconButton(
+                                    onClick = { showInfoDialog = true },
+                                    modifier = Modifier
+                                        .size(48.dp)
+                                        .testTag("player_info_btn")
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Info,
+                                        contentDescription = "Detalles técnicos del archivo",
+                                        tint = SonoraTextSecondary,
+                                        modifier = Modifier.size(22.dp)
+                                    )
+                                }
+                            }
+                        }
 
                 Spacer(modifier = Modifier.height(16.dp))
 
@@ -482,7 +708,7 @@ fun FullScreenPlayer(
 
                 Spacer(modifier = Modifier.height(18.dp))
 
-                // Fila inferior: Visualizador sutil y control de velocidad
+                // Fila inferior: Visualizador sutil, botón de ecualizador y control de velocidad
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -498,49 +724,126 @@ fun FullScreenPlayer(
                         AudioVisualizerBars(
                             isPlaying = playbackState.isPlaying,
                             modifier = Modifier
-                                .width(40.dp)
-                                .height(20.dp),
+                                .width(36.dp)
+                                .height(18.dp),
                             barColor = if (playbackState.isPlaying) SonoraEmeraldBright else SonoraTextMuted,
-                            barCount = 5
+                            barCount = 4
                         )
-                        Spacer(modifier = Modifier.width(8.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
                         Text(
                             text = if (playbackState.isPlaying) "En reproducción" else "En pausa",
                             style = MaterialTheme.typography.labelSmall,
-                            color = SonoraTextSecondary
+                            color = SonoraTextSecondary,
+                            maxLines = 1,
+                            softWrap = false
                         )
                     }
 
-                    // Botón de Velocidad de reproducción (0.75x, 1.0x, etc.)
-                    Semi3DCard(
-                        elevation = 2.dp,
-                        cornerRadius = 20.dp,
-                        onClick = { showSpeedDialog = true },
-                        modifier = Modifier.testTag("speed_selector_btn")
+                    // Botones rápidos de control: Ecualizador DSP, Laboratorio Vocal C++ y Velocidad
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                        // Acceso rápido al ecualizador integrado en el reproductor
+                        Semi3DCard(
+                            elevation = 2.dp,
+                            cornerRadius = 20.dp,
+                            onClick = { currentSubView = FullScreenPlayerSubView.EQUALIZER },
+                            modifier = Modifier.testTag("player_eq_chip_btn")
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.Speed,
-                                contentDescription = "Velocidad de reproducción",
-                                tint = SonoraEmeraldBright,
-                                modifier = Modifier.size(16.dp)
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(
-                                text = "${playbackState.playbackSpeed}x",
-                                style = MaterialTheme.typography.labelMedium.copy(
-                                    fontWeight = FontWeight.Bold
-                                ),
-                                color = SonoraTextPrimary
-                            )
+                            Row(
+                                modifier = Modifier.padding(horizontal = 9.dp, vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.GraphicEq,
+                                    contentDescription = "Abrir ecualizador DSP",
+                                    tint = if (equalizerState.isEnabled) SonoraEmeraldBright else SonoraTextMuted,
+                                    modifier = Modifier.size(15.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = "EQ",
+                                    style = MaterialTheme.typography.labelMedium.copy(
+                                        fontWeight = FontWeight.Bold
+                                    ),
+                                    color = if (equalizerState.isEnabled) SonoraEmeraldBright else SonoraTextPrimary,
+                                    maxLines = 1,
+                                    softWrap = false
+                                )
+                            }
+                        }
+
+                        // Acceso al Laboratorio Vocal C++ (Velocidad de voz & Anti-Ardilla)
+                        Semi3DCard(
+                            elevation = 2.dp,
+                            cornerRadius = 20.dp,
+                            onClick = { currentSubView = FullScreenPlayerSubView.VOCAL_LAB },
+                            modifier = Modifier.testTag("player_vocal_chip_btn")
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 9.dp, vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.RecordVoiceOver,
+                                    contentDescription = "Laboratorio Vocal C++",
+                                    tint = if (vocalState.isEnabled) SonoraCyanBright else SonoraTextMuted,
+                                    modifier = Modifier.size(15.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = if (vocalState.isEnabled) {
+                                        String.format(java.util.Locale.US, "Voz %.2fx", vocalState.vocalSpeed)
+                                    } else {
+                                        "Voz C++"
+                                    },
+                                    style = MaterialTheme.typography.labelMedium.copy(
+                                        fontWeight = FontWeight.Bold
+                                    ),
+                                    color = if (vocalState.isEnabled) SonoraCyanBright else SonoraTextPrimary,
+                                    maxLines = 1,
+                                    softWrap = false
+                                )
+                            }
+                        }
+
+                        // Botón de Velocidad de reproducción de la canción (0.75x, 1.0x, etc.)
+                        Semi3DCard(
+                            elevation = 2.dp,
+                            cornerRadius = 20.dp,
+                            onClick = { showSpeedDialog = true },
+                            modifier = Modifier.testTag("speed_selector_btn")
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 9.dp, vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Speed,
+                                    contentDescription = "Velocidad de reproducción general",
+                                    tint = SonoraEmeraldBright,
+                                    modifier = Modifier.size(15.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = "${playbackState.playbackSpeed}x",
+                                    style = MaterialTheme.typography.labelMedium.copy(
+                                        fontWeight = FontWeight.Bold
+                                    ),
+                                    color = SonoraTextPrimary,
+                                    maxLines = 1,
+                                    softWrap = false
+                                )
+                            }
                         }
                     }
                 }
             }
         }
+    }
+}
+}
 
         // Diálogo de selección de velocidad
         if (showSpeedDialog) {

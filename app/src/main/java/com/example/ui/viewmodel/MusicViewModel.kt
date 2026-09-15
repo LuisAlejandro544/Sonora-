@@ -24,13 +24,13 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 /**
- * Pestañas de navegación principal en la aplicación Sonora.
+ * Pestañas de navegación principal en la barra inferior de Sonora.
+ * El ecualizador reside dentro del reproductor para ajustes en tiempo real.
  */
 enum class SonoraNavTab(val title: String) {
     HOME("Inicio"),
     LIBRARY("Biblioteca"),
     PLAYLISTS("Listas"),
-    EQUALIZER("Ecualizador"),
     SETTINGS("Ajustes")
 }
 
@@ -53,6 +53,7 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
 
     val playbackState: StateFlow<PlaybackState> = playbackManager.playbackState
     val equalizerState: StateFlow<EqualizerState> = playbackManager.equalizerManager.equalizerState
+    val vocalState: StateFlow<com.example.player.vocal.VocalEngineState> = playbackManager.vocalEngineManager.vocalState
 
     val allTracks: StateFlow<List<TrackEntity>> = repository.allTracks
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
@@ -336,6 +337,41 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
     fun resetEqualizer() {
         playbackManager.equalizerManager.resetToFlat()
         _userMessage.value = "Ecualizador restablecido a curva plana"
+    }
+
+    // ==========================================================================
+    // MÉTODOS DEL MOTOR VOCAL C++ (VELOCIDAD DE VOZ Y ANTI-ARDILLA)
+    // ==========================================================================
+
+    fun setVocalEnabled(enabled: Boolean) {
+        playbackManager.vocalEngineManager.setEnabled(enabled)
+        _userMessage.value = if (enabled) "Procesador vocal C++ activado" else "Procesador vocal desactivado"
+    }
+
+    fun setVocalSpeed(speed: Float) {
+        playbackManager.vocalEngineManager.setVocalSpeed(speed)
+    }
+
+    fun setVocalFormantCorrection(enabled: Boolean) {
+        playbackManager.vocalEngineManager.setFormantCorrectionEnabled(enabled)
+    }
+
+    fun setVocalIsolation(isolation: Float) {
+        playbackManager.vocalEngineManager.setVocalIsolation(isolation)
+    }
+
+    fun setVocalGainDb(gainDb: Float) {
+        playbackManager.vocalEngineManager.setVocalGainDb(gainDb)
+    }
+
+    fun applyVocalPreset(preset: com.example.player.vocal.VocalPreset) {
+        playbackManager.vocalEngineManager.applyPreset(preset)
+        _userMessage.value = "Preajuste vocal aplicado: ${preset.displayName}"
+    }
+
+    fun resetVocalToDefault() {
+        playbackManager.vocalEngineManager.resetToDefault()
+        _userMessage.value = "Motor vocal restablecido a valores originales"
     }
 
     override fun onCleared() {

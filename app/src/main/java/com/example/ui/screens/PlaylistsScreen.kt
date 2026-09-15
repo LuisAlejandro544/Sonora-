@@ -330,7 +330,8 @@ fun PlaylistsScreen(
                     Button(
                         onClick = { onPlayAll(selectedPlaylistTracks, false) },
                         colors = ButtonDefaults.buttonColors(containerColor = SonoraEmerald),
-                        shape = RoundedCornerShape(12.dp)
+                        shape = RoundedCornerShape(12.dp),
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Default.PlayArrow,
@@ -339,7 +340,14 @@ fun PlaylistsScreen(
                             modifier = Modifier.size(18.dp)
                         )
                         Spacer(modifier = Modifier.width(4.dp))
-                        Text("Reproducir", color = Color.Black, fontWeight = FontWeight.Bold)
+                        Text(
+                            text = "Reproducir",
+                            color = Color.Black,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 13.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
                     }
                 }
             }

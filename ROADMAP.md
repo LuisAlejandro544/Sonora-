@@ -43,12 +43,16 @@ Este documento describe la visión de desarrollo y la evolución técnica de **S
   - Conexión directa a la tubería de audio de ExoPlayer con `Sonora10BandAudioProcessor` implementando `AudioProcessor` de Media3.
   - Perfiles predefinidos (Plano, Refuerzo de Graves, Refuerzo de Agudos, Rock, Pop, Jazz, Clásica, Vocal, Electrónica, Acústico).
   - Preamplificador independiente (-12 dB a +12 dB), refuerzo de graves (*Bass Boost*) y limitador no lineal analógico *Soft-Clipping* (`tanh`).
+  - **Integración en el Reproductor**: Interfaz gráfica del ecualizador alojada directamente dentro del reproductor a pantalla completa (`FullScreenPlayer`), con animación fluida y retorno rápido, manteniendo limpia la barra de navegación principal.
 - [ ] **Virtualizador Espacial 3D y Expansión Estéreo**:
   - Algoritmo de procesamiento binaural para auriculares en el motor C++ para emular acústica de sala de conciertos.
 - [ ] **Reverberación Convolutiva (Convolution Reverb)**:
   - Carga de respuestas a impulsos (IR) para simular espacios físicos reales.
-- [ ] **Control de Pitch y Tempo Independiente**:
-  - Modificación de velocidad de reproducción sin alterar el tono musical (Time-stretching nativo).
+- [x] **Control de Pitch y Tempo Independiente & Laboratorio Vocal C++**:
+  - Modificación de la velocidad de la voz del cantante (0.50x a 2.00x) sin alterar el tempo ni la velocidad instrumental de la canción.
+  - Motor C++ con algoritmo nativo de preservación de formantes acústicos ("Anti-Ardilla") para evitar tonos agudos no deseados y resonancia artificial.
+  - Aislamiento vocal del canal central (M/S), ajuste de ganancia vocal y presets dedicados (Voz Rápida, Voz Lenta, Acústico, Estudio de Grabación).
+  - Sub-pantalla interactiva `VocalLabScreen` integrada directamente en el reproductor a pantalla completa (`FullScreenPlayer`).
 
 ---
 
@@ -57,6 +61,9 @@ Este documento describe la visión de desarrollo y la evolución técnica de **S
 - [x] **Extracción Nativa de Metadatos y Carátulas en Rust**:
   - Extractor nativo en Rust para parseo de cabeceras ID3v2 (MP3) y bloques Vorbis/Picture (FLAC), extrayendo título, artista y álbum.
   - Extracción de bytes crudos de carátula incrustada y compresión a **WebP sin pérdida de calidad (Lossless)** a máxima eficiencia.
+- [x] **Generador de Carátulas Procedurales Matemáticas de Cero Peso (Sin IA)**:
+  - Creación procedural y determinista de carátulas para pistas huérfanas sin arte original, basada en el hash del título y artista.
+  - Composición visual instantánea con paleta de gradientes poligonales, ondas acústicas y textura concéntrica de microsurcos de vinilo en WebP Lossless, 100% offline y sin consumo de datos ni APIs externas.
 - [x] **Arquitectura de Almacenamiento Modular Desacoplada**:
   - Separación física en 4 directorios independientes (`canciones/`, `webp/`, `metadatos/`, `registros_json/`).
   - Generación de archivos conectores `.json` para trazabilidad y registro íntegro de la biblioteca.

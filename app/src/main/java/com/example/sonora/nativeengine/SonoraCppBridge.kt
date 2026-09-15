@@ -35,6 +35,21 @@ object SonoraCppBridge {
     fun isAvailable(): Boolean = isLibraryLoaded
 
     /**
+     * Obtiene de forma segura la información del motor nativo C++.
+     */
+    fun getEngineInfo(): String {
+        return if (isLibraryLoaded) {
+            try {
+                nativeGetCppEngineInfo()
+            } catch (e: Throwable) {
+                "Sonora C++ DSP Activo"
+            }
+        } else {
+            "Motor C++ no inicializado"
+        }
+    }
+
+    /**
      * Obtiene la descripción detallada del motor C++ (arquitectura y versión Clang).
      */
     external fun nativeGetCppEngineInfo(): String
@@ -101,4 +116,47 @@ object SonoraCppBridge {
      * Aplica distorsión suave y protección de saturación por tanh.
      */
     external fun nativeApplySoftClip(pcmSamples: ShortArray, drive: Float)
+
+    /**
+     * ==============================================================================
+     * MOTOR VOCAL NATIVO C++ (Time-Scale Modification & Anti-Ardilla)
+     * ==============================================================================
+     */
+
+    /**
+     * Configura los parámetros de procesamiento del motor vocal en tiempo real.
+     */
+    external fun nativeSetVocalEngineConfig(
+        enabled: Boolean,
+        speed: Float,
+        formantCorrection: Boolean,
+        isolation: Float,
+        gainDb: Float
+    )
+
+    /**
+     * Reinicia buffers circulares y estados de filtros de formante.
+     */
+    external fun nativeResetVocalEngine()
+
+    /**
+     * Procesa un DirectByteBuffer PCM 16-bit con el motor vocal nativo C++.
+     */
+    external fun nativeProcessDirectVocal(
+        buffer: ByteBuffer,
+        offset: Int,
+        numBytes: Int,
+        sampleRate: Int,
+        channelCount: Int
+    )
+
+    /**
+     * Procesa un array de enteros cortos (PCM 16-bit) con el motor vocal nativo C++.
+     */
+    external fun nativeProcessVocalPcm(
+        pcmSamples: ShortArray,
+        numSamples: Int,
+        sampleRate: Int,
+        channelCount: Int
+    )
 }

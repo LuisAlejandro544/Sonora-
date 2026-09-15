@@ -16,12 +16,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.LibraryMusic
 import androidx.compose.material.icons.filled.QueueMusic
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.outlined.GraphicEq
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.LibraryMusic
 import androidx.compose.material.icons.outlined.QueueMusic
@@ -45,10 +43,10 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.player.equalizer.EqualizerPreset
 import com.example.ui.components.EditMetadataDialog
 import com.example.ui.player.FullScreenPlayer
 import com.example.ui.player.MiniPlayerBar
-import com.example.ui.screens.EqualizerScreen
 import com.example.ui.screens.HomeScreen
 import com.example.ui.screens.LibraryScreen
 import com.example.ui.screens.PlaylistsScreen
@@ -91,6 +89,7 @@ fun MainScreen(
     val selectedPlaylist by viewModel.selectedPlaylist.collectAsStateWithLifecycle()
     val selectedPlaylistTracks by viewModel.selectedPlaylistTracks.collectAsStateWithLifecycle()
     val equalizerState by viewModel.equalizerState.collectAsStateWithLifecycle()
+    val vocalState by viewModel.vocalState.collectAsStateWithLifecycle()
     val trackToEdit by viewModel.trackToEdit.collectAsStateWithLifecycle()
 
     val snackbarHostState = remember { SnackbarHostState() }
@@ -128,7 +127,7 @@ fun MainScreen(
                     }
                 )
 
-                // Barra de navegación inferior
+                // Barra de navegación inferior con las 4 secciones principales
                 NavigationBar(
                     containerColor = SonoraSurface,
                     contentColor = SonoraTextPrimary,
@@ -139,7 +138,6 @@ fun MainScreen(
                         Triple(SonoraNavTab.HOME, Icons.Filled.Home, Icons.Outlined.Home),
                         Triple(SonoraNavTab.LIBRARY, Icons.Filled.LibraryMusic, Icons.Outlined.LibraryMusic),
                         Triple(SonoraNavTab.PLAYLISTS, Icons.Filled.QueueMusic, Icons.Outlined.QueueMusic),
-                        Triple(SonoraNavTab.EQUALIZER, Icons.Filled.GraphicEq, Icons.Outlined.GraphicEq),
                         Triple(SonoraNavTab.SETTINGS, Icons.Filled.Settings, Icons.Outlined.Settings)
                     )
 
@@ -241,17 +239,6 @@ fun MainScreen(
                         onEditTrack = { viewModel.setTrackToEdit(it) }
                     )
 
-                    SonoraNavTab.EQUALIZER -> EqualizerScreen(
-                        equalizerState = equalizerState,
-                        onToggleEnabled = { viewModel.setEqualizerEnabled(it) },
-                        onBandGainChanged = { band, gain -> viewModel.setEqualizerBandGain(band, gain) },
-                        onPresetSelected = { viewModel.applyEqualizerPreset(it) },
-                        onPreampChanged = { viewModel.setEqualizerPreamp(it) },
-                        onBassBoostChanged = { viewModel.setEqualizerBassBoost(it) },
-                        onToggleSoftClip = { viewModel.setEqualizerSoftClip(it) },
-                        onReset = { viewModel.resetEqualizer() }
-                    )
-
                     SonoraNavTab.SETTINGS -> SettingsScreen(
                         totalTracks = totalTrackCount,
                         totalStorageBytes = totalStorageBytes,
@@ -264,10 +251,26 @@ fun MainScreen(
         }
     }
 
-    // Modal reproductor a pantalla completa superpuesto
+    // Modal reproductor a pantalla completa superpuesto (con ecualizador y laboratorio vocal C++ integrados)
     FullScreenPlayer(
         isOpen = isFullScreenOpen,
         playbackState = playbackState,
+        equalizerState = equalizerState,
+        vocalState = vocalState,
+        onToggleEqualizerEnabled = { viewModel.setEqualizerEnabled(it) },
+        onBandGainChanged = { band, gain -> viewModel.setEqualizerBandGain(band, gain) },
+        onPresetSelected = { viewModel.applyEqualizerPreset(it) },
+        onPreampChanged = { viewModel.setEqualizerPreamp(it) },
+        onBassBoostChanged = { viewModel.setEqualizerBassBoost(it) },
+        onToggleSoftClip = { viewModel.setEqualizerSoftClip(it) },
+        onResetEqualizer = { viewModel.resetEqualizer() },
+        onToggleVocalEnabled = { viewModel.setVocalEnabled(it) },
+        onVocalSpeedChanged = { viewModel.setVocalSpeed(it) },
+        onToggleVocalFormantCorrection = { viewModel.setVocalFormantCorrection(it) },
+        onVocalIsolationChanged = { viewModel.setVocalIsolation(it) },
+        onVocalGainDbChanged = { viewModel.setVocalGainDb(it) },
+        onVocalPresetSelected = { viewModel.applyVocalPreset(it) },
+        onResetVocalDefault = { viewModel.resetVocalToDefault() },
         onClose = { viewModel.closeFullScreenPlayer() },
         onTogglePlayPause = { viewModel.togglePlayPause() },
         onPlayNext = { viewModel.playNext() },
@@ -278,10 +281,6 @@ fun MainScreen(
         onSetPlaybackSpeed = { viewModel.setPlaybackSpeed(it) },
         onToggleFavorite = {
             playbackState.currentTrack?.let { viewModel.toggleFavorite(it) }
-        },
-        onOpenEqualizer = {
-            viewModel.closeFullScreenPlayer()
-            viewModel.setNavTab(SonoraNavTab.EQUALIZER)
         },
         onEditMetadata = {
             playbackState.currentTrack?.let { viewModel.setTrackToEdit(it) }

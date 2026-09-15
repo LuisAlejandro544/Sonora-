@@ -24,6 +24,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Tune
@@ -49,6 +50,7 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.player.equalizer.EqualizerBandInfo
@@ -89,7 +91,9 @@ fun EqualizerScreen(
     onPreampChanged: (Float) -> Unit,
     onBassBoostChanged: (Float) -> Unit,
     onToggleSoftClip: (Boolean) -> Unit,
-    onReset: () -> Unit
+    onReset: () -> Unit,
+    modifier: Modifier = Modifier,
+    onBack: (() -> Unit)? = null
 ) {
     val scrollState = rememberScrollState()
     val isNativeAvailable = remember { SonoraCppBridge.isAvailable() }
@@ -98,17 +102,18 @@ fun EqualizerScreen(
     }
 
     Column(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxSize()
             .verticalScroll(scrollState)
             .padding(horizontal = 16.dp, vertical = 20.dp)
             .testTag("equalizer_screen_root")
     ) {
-        // Cabecera con título, estado del motor e interruptor maestro
+        // Cabecera con título, estado del motor, interruptor maestro y botón volver si procede
         EqualizerHeader(
             isEnabled = equalizerState.isEnabled,
             onToggleEnabled = onToggleEnabled,
-            onReset = onReset
+            onReset = onReset,
+            onBack = onBack
         )
 
         Spacer(modifier = Modifier.height(14.dp))
@@ -181,39 +186,70 @@ fun EqualizerScreen(
 
 /**
  * Cabecera principal del ecualizador.
+ * Permite retroceder al reproductor si se abrió desde el mismo,
+ * alternar el procesamiento maestro C++ y restablecer a plano.
  */
 @Composable
 private fun EqualizerHeader(
     isEnabled: Boolean,
     onToggleEnabled: (Boolean) -> Unit,
-    onReset: () -> Unit
+    onReset: () -> Unit,
+    onBack: (() -> Unit)? = null
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    imageVector = Icons.Default.GraphicEq,
-                    contentDescription = null,
-                    tint = SonoraEmeraldBright,
-                    modifier = Modifier.size(26.dp)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
+        Row(
+            modifier = Modifier.weight(1f),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            if (onBack != null) {
+                IconButton(
+                    onClick = onBack,
+                    modifier = Modifier
+                        .size(48.dp)
+                        .testTag("eq_back_to_player_btn")
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "Volver al reproductor",
+                        tint = SonoraTextPrimary,
+                        modifier = Modifier.size(26.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.width(4.dp))
+            }
+
+            Column {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (onBack == null) {
+                        Icon(
+                            imageVector = Icons.Default.GraphicEq,
+                            contentDescription = null,
+                            tint = SonoraEmeraldBright,
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                    }
+                    Text(
+                        text = "Ecualizador DSP",
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = SonoraTextPrimary,
+                        maxLines = 1,
+                        softWrap = false
+                    )
+                }
                 Text(
-                    text = "Ecualizador DSP",
-                    fontSize = 22.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                    color = SonoraTextPrimary
+                    text = if (isEnabled) "Procesamiento nativo activo" else "Ecualizador desactivado",
+                    fontSize = 12.sp,
+                    color = if (isEnabled) SonoraEmerald else SonoraTextMuted,
+                    maxLines = 1,
+                    softWrap = false
                 )
             }
-            Text(
-                text = if (isEnabled) "Procesamiento nativo C++ activo" else "Ecualizador desactivado (Bypass)",
-                fontSize = 13.sp,
-                color = if (isEnabled) SonoraEmerald else SonoraTextMuted
-            )
         }
 
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -230,7 +266,7 @@ private fun EqualizerHeader(
                 )
             }
 
-            Spacer(modifier = Modifier.width(4.dp))
+            Spacer(modifier = Modifier.width(2.dp))
 
             Switch(
                 checked = isEnabled,
@@ -556,12 +592,24 @@ private fun AcousticDynamicsControls(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = "Preamplificador Maestro",
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = SonoraTextPrimary
-                    )
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Preamplificador",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = SonoraTextPrimary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Text(
+                            text = "Ganancia general",
+                            fontSize = 11.sp,
+                            color = SonoraTextSecondary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
                     Text(
                         text = String.format(Locale.US, "%s%.1f dB", if (preampDb > 0.05f) "+" else "", preampDb),
                         fontSize = 13.sp,
@@ -594,12 +642,24 @@ private fun AcousticDynamicsControls(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = "Refuerzo Sub-Graves (Low-Shelf 80 Hz)",
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = SonoraTextPrimary
-                    )
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Refuerzo de Graves",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = SonoraTextPrimary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Text(
+                            text = "Filtro Low-Shelf 80 Hz",
+                            fontSize = 11.sp,
+                            color = SonoraTextSecondary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
                     Text(
                         text = String.format(Locale.US, "+%.1f dB", bassBoostDb),
                         fontSize = 13.sp,
@@ -635,17 +695,22 @@ private fun AcousticDynamicsControls(
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "Protección Soft-Clipping (tanh)",
+                        text = "Soft-Clipping (tanh)",
                         fontSize = 14.sp,
                         fontWeight = FontWeight.SemiBold,
-                        color = SonoraTextPrimary
+                        color = SonoraTextPrimary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                     Text(
-                        text = "Elimina la distorsión digital áspera al saturar frecuencias graves",
-                        fontSize = 12.sp,
-                        color = SonoraTextSecondary
+                        text = "Protege contra distorsión digital al saturar",
+                        fontSize = 11.sp,
+                        color = SonoraTextSecondary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
+                Spacer(modifier = Modifier.width(8.dp))
                 Switch(
                     checked = isSoftClipEnabled,
                     onCheckedChange = onToggleSoftClip,

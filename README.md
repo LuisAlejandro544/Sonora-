@@ -10,7 +10,8 @@ El proyecto está diseñado pensando en la libertad del usuario, rendimiento en 
 
 - **Interfaz Rica y Moderna (Jetpack Compose)**:
   - Diseño con volumen y profundidad visual mediante componentes semi-3D y sombras dinámicas.
-  - Navegación modular entre pantallas dedicadas: *Reproducción Actual (Now Playing)*, *Biblioteca de Canciones*, *Gestión de Playlists*, *Ecualizador Gráfico & DSP* y *Ajustes Técnicos*.
+  - Navegación modular ergonómica: barra de navegación principal con 4 secciones clave (*Inicio*, *Biblioteca de Canciones*, *Gestión de Playlists* y *Ajustes Técnicos*).
+  - **Ecualizador Integrado Directamente en el Reproductor**: El *Ecualizador Gráfico DSP de 10 Bandas* cuenta con su propia interfaz completa alojada directamente dentro del reproductor a pantalla completa (*Now Playing*), con transición animada fluida y botón de retorno, evitando saturar la barra de navegación inferior en dispositivos móviles.
   - **Aislamiento Tipográfico Propio (`fontScale = 1.0f`)**: La aplicación cuenta con su propia escala tipográfica calibrada e invariable mediante `CompositionLocalProvider`, evitando desbordamientos o choques con el tamaño de letra del sistema que el usuario tenga en su teléfono móvil.
   - Podio dinámico de **"Más escuchadas"** en la pantalla de Inicio: insignia metálica por puesto (#1 oro, #2 plata/cian, #3 bronce), contador de reproducciones en vivo y acceso directo a cola de alta rotación.
   - **Sistema de Favoritos Reactivo e Instantáneo**: Marcado con corazón en verde esmeralda brillante (`#00E676`) con animación elástica de escala y persistencia atómica tanto en el mini-reproductor persistente como en el reproductor a pantalla completa, podio y biblioteca.
@@ -24,7 +25,8 @@ El proyecto está diseñado pensando en la libertad del usuario, rendimiento en 
 - **Motor Híbrido Nativo de Alto Rendimiento**:
   - **C++ (`libsonora_dsp.so`) & Conexión Directa a ExoPlayer**:
     - **Ecualizador de 10 Bandas Paramétrico**: Procesamiento en tiempo real con frecuencias ISO (31 Hz, 62 Hz, 125 Hz, 250 Hz, 500 Hz, 1 kHz, 2 kHz, 4 kHz, 8 kHz, 16 kHz) con ganancia de -12 dB a +12 dB.
-    - Integración directa en la tubería de audio de ExoPlayer mediante un `AudioProcessor` personalizado (`Sonora10BandAudioProcessor`) acoplado a la fábrica `DefaultRenderersFactory` de Media3.
+    - **Laboratorio Vocal C++ (Time-Scale Modification & Anti-Ardilla)**: Modificación independiente de la cadencia y velocidad de la voz del cantante (0.50x a 2.00x) en tiempo real sin acelerar la canción instrumental ni alterar el tempo global. Incluye algoritmo de preservación de formantes acústicos ("Anti-Ardilla") para evitar tonos agudos no deseados, aislamiento del canal central (M/S) y presets vocales de alta definición.
+    - Integración directa en la tubería de audio de ExoPlayer mediante procesadores `AudioProcessor` personalizados (`Sonora10BandAudioProcessor` y `SonoraVocalAudioProcessor`) acoplados a la fábrica `DefaultRenderersFactory` de Media3.
     - Algoritmo de filtrado digital IIR Biquad paramétrico basado en el estándar de Robert Bristow-Johnson (Cookbook EQ).
     - Limitador y saturador analógico no lineal *Soft-Clipping* (`tanh`) para prevenir distorsión digital al aplicar refuerzo dinámico de graves (*Bass Boost*) y preamplificación.
   - **Rust (`libsonora_rust.so`)**:
@@ -33,6 +35,10 @@ El proyecto está diseñado pensando en la libertad del usuario, rendimiento en 
     - Análisis espectral de baja latencia con ventana Hamming y banco de filtros logarítmico para el visualizador a 60 FPS.
     - Medidor RMS de energía acústica y cálculo de decibelios en tiempo real (dBFS).
     - Generación de hashes acústicos ultrarrápidos FNV-1a de 64 bits para deduplicación de pistas e indexación en caché.
+
+- **Generador de Carátulas Procedurales de Peso Cero (Cero Dependencia de IA Externa)**:
+  - Cuando se importa una pista sin carátula incrustada, Sonora genera automáticamente una carátula vectorial procedural única y determinista basada en el hash del título y artista.
+  - Generación instantánea en milisegundos sin consumir conexión a internet ni requerir modelos de IA pesados: patrones geométricos dinámicos, gradientes poligonales de alto contraste y textura concéntrica de microsurcos de disco de vinilo en WebP Lossless.
 
 - **Arquitectura de Almacenamiento Modular Desacoplada (`android/data/com.nuestraapp/`)**:
   - `canciones/`: Almacén aislado de pistas de audio importadas.

@@ -17,6 +17,7 @@
 #include <algorithm>
 #include <mutex>
 #include <android/log.h>
+#include "sonora_vocal.h"
 
 #define TAG "SonoraDspNative"
 #define LOGI(...) __android_log_print(ANDROID_LOG_INFO, TAG, __VA_ARGS__)
@@ -91,6 +92,9 @@ struct ChannelFilterBank {
 static ChannelFilterBank gLeftChannel;
 static ChannelFilterBank gRightChannel;
 static std::mutex gDspMutex;
+
+// Instancia global del Motor Vocal C++ (Time-Scale Modification & Anti-Ardilla)
+static SonoraVocalEngine gVocalEngine;
 
 /**
  * Calcula los coeficientes de un filtro biquad paramétrico Peaking EQ
@@ -469,6 +473,85 @@ Java_com_example_sonora_nativeengine_SonoraCppBridge_nativeApplySoftClip(
     }
 
     env->SetShortArrayRegion(pcm_samples, 0, len, buffer.data());
+}
+
+/**
+ * ==============================================================================
+ * MÉTODOS JNI: MOTOR VOCAL C++ (VELOCIDAD DE VOZ Y ANTI-ARDILLA)
+ * ==============================================================================
+ */
+
+JNIEXPORT void JNICALL
+Java_com_example_sonora_nativeengine_SonoraCppBridge_nativeSetVocalEngineConfig(
+        JNIEnv * /* env */,
+        jclass /* clazz */,
+        jboolean enabled,
+        jfloat speed,
+        jboolean formant_correction,
+        jfloat isolation,
+        jfloat gain_db) {
+
+    gVocalEngine.setEnabled(enabled);
+    gVocalEngine.setVocalSpeed(speed);
+    gVocalEngine.setFormantCorrection(formant_correction);
+    gVocalEngine.setVocalIsolation(isolation);
+    gVocalEngine.setVocalGainDb(gain_db);
+}
+
+JNIEXPORT void JNICALL
+Java_com_example_sonora_nativeengine_SonoraCppBridge_nativeResetVocalEngine(
+        JNIEnv * /* env */,
+        jclass /* clazz */) {
+
+    gVocalEngine.reset();
+}
+
+JNIEXPORT void JNICALL
+Java_com_example_sonora_nativeengine_SonoraCppBridge_nativeProcessDirectVocal(
+        JNIEnv *env,
+        jclass /* clazz */,
+        jobject buffer,
+        jint offset,
+        jint num_bytes,
+        jint sample_rate,
+        jint channel_count) {
+
+    if (buffer == nullptr || num_bytes <= 0) return;
+
+    void* rawAddress = env->GetDirectBufferAddress(buffer);
+    if (rawAddress == nullptr) {
+        LOGE("Buffer directo nulo en nativeProcessDirectVocal");
+        return;
+    }
+
+    auto* pcmPtr = reinterpret_cast<int16_t*>(static_cast<uint8_t*>(rawAddress) + offset);
+    int totalSamples = num_bytes / static_cast<int>(sizeof(int16_t));
+    int numFrames = (channel_count > 0) ? (totalSamples / channel_count) : totalSamples;
+
+    gVocalEngine.setSampleRate(static_cast<float>(sample_rate));
+    gVocalEngine.processInterleavedPcm16(pcmPtr, numFrames, channel_count);
+}
+
+JNIEXPORT void JNICALL
+Java_com_example_sonora_nativeengine_SonoraCppBridge_nativeProcessVocalPcm(
+        JNIEnv *env,
+        jclass /* clazz */,
+        jshortArray pcm_samples,
+        jint num_samples,
+        jint sample_rate,
+        jint channel_count) {
+
+    if (pcm_samples == nullptr || num_samples <= 0) return;
+
+    std::vector<int16_t> buffer(num_samples);
+    env->GetShortArrayRegion(pcm_samples, 0, num_samples, buffer.data());
+
+    int numFrames = (channel_count > 0) ? (num_samples / channel_count) : num_samples;
+
+    gVocalEngine.setSampleRate(static_cast<float>(sample_rate));
+    gVocalEngine.processInterleavedPcm16(buffer.data(), numFrames, channel_count);
+
+    env->SetShortArrayRegion(pcm_samples, 0, num_samples, buffer.data());
 }
 
 } // extern "C"

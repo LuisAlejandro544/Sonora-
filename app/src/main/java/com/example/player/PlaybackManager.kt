@@ -1,7 +1,10 @@
 package com.example.player
 
+import android.app.PendingIntent
 import android.content.Context
+import android.content.Intent
 import android.net.Uri
+import android.os.Build
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
@@ -14,6 +17,8 @@ import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.audio.AudioSink
 import androidx.media3.exoplayer.audio.DefaultAudioSink
+import androidx.media3.session.MediaSession
+import com.example.MainActivity
 import com.example.data.local.TrackEntity
 import com.example.player.equalizer.EqualizerManager
 import com.example.player.equalizer.Sonora10BandAudioProcessor
@@ -32,14 +37,33 @@ import java.io.File
 
 /**
  * Gestor del motor de audio de Sonora utilizando ExoPlayer y Media3.
- * 
- * Controla el ciclo de vida del reproductor, colas de reproducción, modos aleatorio y repetición,
- * cambios de velocidad y emite el estado reactivo mediante StateFlow.
+ *
+ * Implementa el patrón Singleton para coordinar la reproducción entre la interfaz de usuario
+ * (Jetpack Compose / ViewModel) y el servicio en segundo plano (SonoraMediaService).
+ *
+ * Expone un MediaSession para la barra de notificaciones del sistema con controles
+ * multimedia interactivos y carátula del álbum en alta resolución.
  */
-class PlaybackManager(
-    private val context: Context,
-    private val onTrackFinished: ((TrackEntity) -> Unit)? = null
+class PlaybackManager private constructor(
+    private val context: Context
 ) {
+    companion object {
+        @Volatile
+        private var INSTANCE: PlaybackManager? = null
+
+        fun getInstance(context: Context): PlaybackManager {
+            return INSTANCE ?: synchronized(this) {
+                INSTANCE ?: PlaybackManager(context.applicationContext).also { INSTANCE = it }
+            }
+        }
+    }
+
+    private var onTrackFinished: ((TrackEntity) -> Unit)? = null
+
+    fun setTrackFinishedListener(listener: (TrackEntity) -> Unit) {
+        this.onTrackFinished = listener
+    }
+
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private var progressJob: Job? = null
 
@@ -47,7 +71,10 @@ class PlaybackManager(
     val playbackState: StateFlow<PlaybackState> = _playbackState.asStateFlow()
 
     val equalizerManager: EqualizerManager = EqualizerManager.getInstance(context)
+    val vocalEngineManager: com.example.player.vocal.VocalEngineManager = com.example.player.vocal.VocalEngineManager.getInstance(context)
+
     private val audioProcessor = Sonora10BandAudioProcessor(equalizerManager)
+    private val vocalAudioProcessor = com.example.player.vocal.SonoraVocalAudioProcessor(vocalEngineManager)
 
     private val exoPlayer: ExoPlayer by lazy {
         val renderersFactory = object : DefaultRenderersFactory(context) {
@@ -57,7 +84,7 @@ class PlaybackManager(
                 enableAudioTrackPlaybackParams: Boolean
             ): AudioSink {
                 return DefaultAudioSink.Builder(context)
-                    .setAudioProcessors(arrayOf(audioProcessor))
+                    .setAudioProcessors(arrayOf(audioProcessor, vocalAudioProcessor))
                     .setEnableFloatOutput(enableFloatOutput)
                     .setEnableAudioTrackPlaybackParams(enableAudioTrackPlaybackParams)
                     .build()
@@ -92,11 +119,51 @@ class PlaybackManager(
             }
     }
 
+    /**
+     * Sesión MediaSession de Media3 vinculada a ExoPlayer.
+     * Permite a la System UI de Android (pantalla de bloqueo y panel de notificaciones)
+     * mostrar el mini reproductor con carátula y botones de control.
+     */
+    val mediaSession: MediaSession by lazy {
+        val intent = Intent(context, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        }
+        val pendingIntent = PendingIntent.getActivity(
+            context,
+            0,
+            intent,
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
+
+        MediaSession.Builder(context, exoPlayer)
+            .setSessionActivity(pendingIntent)
+            .build()
+    }
+
+    /**
+     * Inicia el servicio en primer plano SonoraMediaService si aún no está en ejecución.
+     */
+    private fun ensureServiceRunning() {
+        try {
+            val serviceIntent = Intent(context, SonoraMediaService::class.java)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                context.startForegroundService(serviceIntent)
+            } else {
+                context.startService(serviceIntent)
+            }
+        } catch (_: Exception) {
+            // Manejo preventivo si existen restricciones de inicio en background
+        }
+    }
+
+    fun isPlaying(): Boolean = exoPlayer.isPlaying
+
     private val playerListener = object : Player.Listener {
         override fun onIsPlayingChanged(isPlaying: Boolean) {
             _playbackState.update { it.copy(isPlaying = isPlaying) }
             if (isPlaying) {
                 startProgressUpdates()
+                ensureServiceRunning()
             } else {
                 stopProgressUpdates()
             }
@@ -149,10 +216,36 @@ class PlaybackManager(
 
         val mediaItems = newQueue.map { item ->
             val uri = Uri.fromFile(File(item.filePath))
+
+            // Extraer bytes de carátula local (WebP Lossless o Procedural)
+            val artworkBytes = item.albumArtPath?.let { path ->
+                try {
+                    val artFile = File(path)
+                    if (artFile.exists() && artFile.length() > 0) {
+                        artFile.readBytes()
+                    } else null
+                } catch (_: Exception) {
+                    null
+                }
+            }
+
+            val artworkUri = item.albumArtPath?.let { path ->
+                val artFile = File(path)
+                if (artFile.exists()) Uri.fromFile(artFile) else null
+            }
+
             val meta = MediaMetadata.Builder()
                 .setTitle(item.title)
                 .setArtist(item.artist)
                 .setAlbumTitle(item.album)
+                .apply {
+                    if (artworkBytes != null) {
+                        setArtworkData(artworkBytes, MediaMetadata.PICTURE_TYPE_FRONT_COVER)
+                    }
+                    if (artworkUri != null) {
+                        setArtworkUri(artworkUri)
+                    }
+                }
                 .build()
 
             MediaItem.Builder()
@@ -178,6 +271,7 @@ class PlaybackManager(
         exoPlayer.setMediaItems(mediaItems, targetIndex, 0L)
         exoPlayer.prepare()
         exoPlayer.play()
+        ensureServiceRunning()
     }
 
     fun togglePlayPause() {
@@ -188,6 +282,7 @@ class PlaybackManager(
                 exoPlayer.prepare()
             }
             exoPlayer.play()
+            ensureServiceRunning()
         }
     }
 

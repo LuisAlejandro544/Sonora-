@@ -1,3 +1,5 @@
 <resources>
     <string name="app_name">Sonora</string>
+    <string name="playback_notification_channel_name">Reproducción de audio Sonora</string>
+    <string name="playback_notification_channel_description">Notificación interactiva con carátula y controles multimedia en segundo plano</string>
 </resources>

@@ -32,4 +32,7 @@ val SonoraHeartInactive = Color(0xFF8E8E8E)
 val SonoraProgressBackground = Color(0xFF404040)
 val SonoraCardGlow = Color(0x331DB954)
 val SonoraDanger = Color(0xFFE53935)
+val SonoraCyanBright = Color(0xFF00E5FF)
+val SonoraBorderMuted = Color(0xFF2C2C2C)
+val SonoraCardBackground = Color(0xFF1E1E1E)
 

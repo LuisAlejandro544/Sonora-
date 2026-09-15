@@ -150,13 +150,26 @@ class AudioImporter(
         val cleanArtist = if (!artist.isNullOrBlank()) artist.trim() else "Artista desconocido"
         val cleanAlbum = if (!album.isNullOrBlank()) album.trim() else "Álbum desconocido"
 
-        // 3. Comprimir carátula a WebP a máxima compresión sin pérdida (Lossless) en carpeta [webp/]
+        // 3. Carátula de audio: Si tiene portada incrustada, comprimir a WebP Lossless.
+        // Si NO tiene carátula, generar proceduralmente una portada única y ultraliviana (no IA) en WebP.
         var webpCoverPath: String? = null
         if (coverBytes != null && coverBytes.isNotEmpty()) {
             val webpFile = storageManager.createWebpFile(trackUuid)
             val success = WebpLosslessCompressor.compressToWebpLossless(coverBytes, webpFile)
             if (success) {
                 webpCoverPath = webpFile.absolutePath
+            }
+        }
+        if (webpCoverPath == null) {
+            val proceduralWebpFile = storageManager.createWebpFile(trackUuid)
+            val success = com.example.data.art.ProceduralArtGenerator.generateCover(
+                title = cleanTitle,
+                artist = cleanArtist,
+                album = cleanAlbum,
+                outputFile = proceduralWebpFile
+            )
+            if (success) {
+                webpCoverPath = proceduralWebpFile.absolutePath
             }
         }
 
@@ -336,6 +349,15 @@ class AudioImporter(
         }
 
         val sampleUuid = UUID.randomUUID().toString().take(8)
+        val sampleWebpFile = storageManager.createWebpFile(sampleUuid)
+        val artGenerated = com.example.data.art.ProceduralArtGenerator.generateCover(
+            title = title,
+            artist = artist,
+            album = album,
+            outputFile = sampleWebpFile
+        )
+        val sampleCoverPath = if (artGenerated) sampleWebpFile.absolutePath else null
+
         val metaFile = storageManager.saveMetadataFile(
             trackUuid = sampleUuid,
             title = title,
@@ -350,7 +372,7 @@ class AudioImporter(
             artist = artist,
             album = album,
             songFilePath = file.absolutePath,
-            webpCoverPath = null,
+            webpCoverPath = sampleCoverPath,
             metadataFilePath = metaFile.absolutePath,
             jsonRecordPath = "",
             durationMs = durationSeconds * 1000L,
@@ -365,7 +387,7 @@ class AudioImporter(
             album = album,
             durationMs = durationSeconds * 1000L,
             filePath = file.absolutePath,
-            albumArtPath = null,
+            albumArtPath = sampleCoverPath,
             fileSize = file.length(),
             mimeType = "audio/wav"
         )

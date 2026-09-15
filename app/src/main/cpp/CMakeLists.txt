@@ -13,11 +13,12 @@ project("sonora_dsp")
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# Compilación de la biblioteca compartida DSP
+# Compilación de la biblioteca compartida DSP y Motor Vocal
 add_library(
     sonora_dsp
     SHARED
     sonora_dsp.cpp
+    sonora_vocal.cpp
 )
 
 # Localizar la biblioteca nativa de logging de Android

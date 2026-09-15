@@ -203,11 +203,13 @@ fun HomeScreen(
                                 )
                             }
                             Text(
-                                text = "Importar Audio",
-                                style = MaterialTheme.typography.titleSmall.copy(
+                                text = "Importar",
+                                style = MaterialTheme.typography.labelLarge.copy(
                                     fontWeight = FontWeight.Bold
                                 ),
-                                color = SonoraTextPrimary
+                                color = SonoraTextPrimary,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
                         }
                     }
@@ -260,15 +262,19 @@ fun HomeScreen(
                             Column {
                                 Text(
                                     text = "Favoritos",
-                                    style = MaterialTheme.typography.titleSmall.copy(
+                                    style = MaterialTheme.typography.labelLarge.copy(
                                         fontWeight = FontWeight.Bold
                                     ),
-                                    color = SonoraTextPrimary
+                                    color = SonoraTextPrimary,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
                                 )
                                 Text(
                                     text = "${favoriteTracks.size} temas",
                                     style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
-                                    color = SonoraTextSecondary
+                                    color = SonoraTextSecondary,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
                                 )
                             }
                         }
@@ -321,10 +327,12 @@ fun HomeScreen(
                             }
                             Text(
                                 text = "Aleatorio",
-                                style = MaterialTheme.typography.titleSmall.copy(
+                                style = MaterialTheme.typography.labelLarge.copy(
                                     fontWeight = FontWeight.Bold
                                 ),
-                                color = SonoraTextPrimary
+                                color = SonoraTextPrimary,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
                         }
                     }
